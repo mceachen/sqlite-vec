@@ -1,6 +1,6 @@
 {
-  "name": "sqlite-vec",
-  "version": "0.2.1-alpha",
+  "name": "@mceachen/sqlite-vec",
+  "version": "0.2.3-alpha",
   "description": "A vector search SQLite extension that runs anywhere",
   "main": "./index.cjs",
   "module": "./index.mjs",
@@ -18,7 +18,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vlasky/sqlite-vec.git"
+    "url": "git+https://github.com/mceachen/sqlite-vec.git"
   },
   "keywords": [
     "sqlite",
@@ -29,15 +29,19 @@
   ],
   "author": "Alex Garcia <alex@alex.garcia>",
   "contributors": [
-    "Vlad Lasky"
+    "Vlad Lasky", 
+    "Matthew McEachen"
   ],
   "license": "(MIT OR Apache-2.0)",
   "bugs": {
-    "url": "https://github.com/vlasky/sqlite-vec/issues"
+    "url": "https://github.com/mceachen/sqlite-vec/issues"
   },
-  "homepage": "https://github.com/vlasky/sqlite-vec#readme",
+  "homepage": "https://github.com/mceachen/sqlite-vec#readme",
   "engines": {
     "node": ">=14.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "os": [
     "darwin",
