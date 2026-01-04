@@ -4,9 +4,11 @@
 
 > [!NOTE]
 > **Community Fork Notice:** This is a temporary fork of [`asg017/sqlite-vec`](https://github.com/asg017/sqlite-vec)
-> Created to merge pending upstream PRs and provide community support while the original author is unavailable.
-> Once development resumes on the original repository, users are encouraged to switch back.
-> All credit for the original implementation goes to [Alex Garcia](https://github.com/asg017).
+> - Created to merge pending upstream PRs and provide community support while the original author is unavailable.
+> - Once development resumes on the original repository, users are encouraged to switch back.
+> - All credit for the original implementation goes to [Alex Garcia](https://github.com/asg017).
+> - Credit for creating the fork and merging PRs goes to [Vlad Lasky](https://github.com/vlasky).
+> - Minor hardening and SQLite updates have been done to this fork -- feel free to cherry-pick any changes back upstream -- commits are kept isolated for this purpose.
 
 An extremely small, "fast enough" vector search SQLite extension that runs
 anywhere! A successor to [`sqlite-vss`](https://github.com/asg017/sqlite-vss)
