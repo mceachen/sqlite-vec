@@ -6265,6 +6265,15 @@ struct Vec0MetadataInTextEntry {
   char * zString;
 };
 
+// Frees all zString pointers in a Vec0MetadataInTextEntry array and cleans up the array.
+static void vec0_metadata_in_text_cleanup(struct Array *arr) {
+  for(size_t j = 0; j < arr->length; j++) {
+    struct Vec0MetadataInTextEntry *e = &((struct Vec0MetadataInTextEntry*)arr->z)[j];
+    sqlite3_free(e->zString);
+  }
+  array_cleanup(arr);
+}
+
 // Helper function to detect if a LIKE pattern is prefix-only (e.g., 'abc%')
 // Returns 1 if the pattern ends with '%' and has no wildcards in the middle
 // Returns 0 otherwise
@@ -7657,12 +7666,14 @@ int vec0Filter_knn(vec0_cursor *pCur, vec0_vtab *p, int idxNum,
           i64 v = sqlite3_value_int64(entry);
           rc = array_append(&item.array, &v);
           if (rc != SQLITE_OK) {
+            array_cleanup(&item.array);
             goto cleanup;
           }
         }
 
         if (rc != SQLITE_DONE) {
           vtab_set_error(&p->base, "Error fetching next value in `x in (...)` integer expression");
+          array_cleanup(&item.array);
           goto cleanup;
         }
 
@@ -7678,25 +7689,34 @@ int vec0Filter_knn(vec0_cursor *pCur, vec0_vtab *p, int idxNum,
           const char * s = (const char *) sqlite3_value_text(entry);
           int n = sqlite3_value_bytes(entry);
 
-          struct Vec0MetadataInTextEntry entry;
-          entry.zString = sqlite3_mprintf("%.*s", n, s);
-          if(!entry.zString) {
+          struct Vec0MetadataInTextEntry textEntry;
+          textEntry.zString = sqlite3_mprintf("%.*s", n, s);
+          if(!textEntry.zString) {
             rc = SQLITE_NOMEM;
-            goto cleanup;
+            goto item_text_cleanup;
           }
-          entry.n = n;
-          rc = array_append(&item.array, &entry);
+          textEntry.n = n;
+          rc = array_append(&item.array, &textEntry);
           if (rc != SQLITE_OK) {
-            goto cleanup;
+            sqlite3_free(textEntry.zString);
+            goto item_text_cleanup;
           }
         }
 
         if (rc != SQLITE_DONE) {
           vtab_set_error(&p->base, "Error fetching next value in `x in (...)` text expression");
-          goto cleanup;
+          goto item_text_cleanup;
         }
 
         break;
+
+      // Error cleanup label for TEXT case only. Unlike INTEGER entries (which are
+      // plain i64 values), TEXT entries contain heap-allocated zString pointers
+      // that must be freed before array_cleanup(). This label is only reachable
+      // via goto from error paths within this case block.
+      item_text_cleanup:
+        vec0_metadata_in_text_cleanup(&item.array);
+        goto cleanup;
       }
       default: {
         vtab_set_error(&p->base, "Internal sqlite-vec error");
@@ -7706,6 +7726,12 @@ int vec0Filter_knn(vec0_cursor *pCur, vec0_vtab *p, int idxNum,
 
     rc = array_append(aMetadataIn, &item);
     if(rc != SQLITE_OK) {
+      // Clean up item that couldn't be appended
+      if(p->metadata_columns[metadata_idx].kind == VEC0_METADATA_COLUMN_KIND_TEXT) {
+        vec0_metadata_in_text_cleanup(&item.array);
+      } else {
+        array_cleanup(&item.array);
+      }
       goto cleanup;
     }
   }
@@ -7747,13 +7773,11 @@ cleanup:
   if(aMetadataIn) {
     for(size_t i = 0; i < aMetadataIn->length; i++) {
       struct Vec0MetadataIn* item = &((struct Vec0MetadataIn *) aMetadataIn->z)[i];
-      for(size_t j = 0; j < item->array.length; j++) {
-        if(p->metadata_columns[item->metadata_idx].kind == VEC0_METADATA_COLUMN_KIND_TEXT) {
-          struct Vec0MetadataInTextEntry entry = ((struct Vec0MetadataInTextEntry*)item->array.z)[j];
-          sqlite3_free(entry.zString);
-        }
+      if(p->metadata_columns[item->metadata_idx].kind == VEC0_METADATA_COLUMN_KIND_TEXT) {
+        vec0_metadata_in_text_cleanup(&item->array);
+      } else {
+        array_cleanup(&item->array);
       }
-      array_cleanup(&item->array);
     }
     array_cleanup(aMetadataIn);
   }
