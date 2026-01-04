@@ -802,9 +802,9 @@ char *type_name(int type) {
   return "";
 }
 
-typedef void (*fvec_cleanup)(f32 *vector);
+typedef void (*fvec_cleanup)(void *vector);
 
-void fvec_cleanup_noop(f32 *_) { UNUSED_PARAMETER(_); }
+void fvec_cleanup_noop(void *_) { UNUSED_PARAMETER(_); }
 
 static int fvec_from_value(sqlite3_value *value, f32 **vector,
                            size_t *dimensions, fvec_cleanup *cleanup,
@@ -916,7 +916,7 @@ static int fvec_from_value(sqlite3_value *value, f32 **vector,
     if (x.length > 0) {
       *vector = (f32 *)x.z;
       *dimensions = x.length;
-      *cleanup = (fvec_cleanup)sqlite3_free;
+      *cleanup = sqlite3_free;
       return SQLITE_OK;
     }
     sqlite3_free(x.z);
@@ -10607,65 +10607,82 @@ static int vec_static_blob_entriesFilter(sqlite3_vtab_cursor *pVtabCursor,
   if (idxNum == VEC_SBE__QUERYPLAN_KNN) {
     assert(argc == 2);
     pCur->query_plan = VEC_SBE__QUERYPLAN_KNN;
-    struct sbe_query_knn_data *knn_data;
+    int rc = SQLITE_OK;
+    struct sbe_query_knn_data *knn_data = NULL;
+    void *queryVector = NULL;
+    vector_cleanup queryVectorCleanup = vector_cleanup_noop;
+    i32 *topk_rowids = NULL;
+    f32 *distances = NULL;
+    u8 *candidates = NULL;
+    u8 *taken = NULL;
+
     knn_data = sqlite3_malloc(sizeof(*knn_data));
     if (!knn_data) {
-      return SQLITE_NOMEM;
+      rc = SQLITE_NOMEM;
+      goto knn_cleanup;
     }
     memset(knn_data, 0, sizeof(*knn_data));
 
-    void *queryVector;
     size_t dimensions;
     enum VectorElementType elementType;
-    vector_cleanup cleanup;
     char *err;
-    int rc = vector_from_value(argv[0], &queryVector, &dimensions, &elementType,
-                               &cleanup, &err);
+    rc = vector_from_value(argv[0], &queryVector, &dimensions, &elementType,
+                           &queryVectorCleanup, &err);
     if (rc != SQLITE_OK) {
-      return SQLITE_ERROR;
+      rc = SQLITE_ERROR;
+      goto knn_cleanup;
     }
     if (elementType != p->blob->element_type) {
-      return SQLITE_ERROR;
+      rc = SQLITE_ERROR;
+      goto knn_cleanup;
     }
     if (dimensions != p->blob->dimensions) {
-      return SQLITE_ERROR;
+      rc = SQLITE_ERROR;
+      goto knn_cleanup;
     }
 
     i64 k = min(sqlite3_value_int64(argv[1]), (i64)p->blob->nvectors);
     if (k < 0) {
-      // HANDLE https://github.com/asg017/sqlite-vec/issues/55
-      return SQLITE_ERROR;
+      rc = SQLITE_ERROR;
+      goto knn_cleanup;
     }
     if (k == 0) {
       knn_data->k = 0;
       pCur->knn_data = knn_data;
+      queryVectorCleanup(queryVector);
       return SQLITE_OK;
     }
 
     size_t bsize = (p->blob->nvectors + 7) & ~7;
 
-    i32 *topk_rowids = sqlite3_malloc(k * sizeof(i32));
+    topk_rowids = sqlite3_malloc(k * sizeof(i32));
     if (!topk_rowids) {
-      // HANDLE https://github.com/asg017/sqlite-vec/issues/55
-      return SQLITE_ERROR;
+      rc = SQLITE_NOMEM;
+      goto knn_cleanup;
     }
-    f32 *distances = sqlite3_malloc(bsize * sizeof(f32));
+    distances = sqlite3_malloc(bsize * sizeof(f32));
     if (!distances) {
-      // HANDLE https://github.com/asg017/sqlite-vec/issues/55
-      return SQLITE_ERROR;
+      rc = SQLITE_NOMEM;
+      goto knn_cleanup;
     }
 
     for (size_t i = 0; i < p->blob->nvectors; i++) {
-      // https://github.com/asg017/sqlite-vec/issues/52
       float *v = ((float *)p->blob->p) + (i * p->blob->dimensions);
       distances[i] =
           distance_l2_sqr_float(v, (float *)queryVector, &p->blob->dimensions);
     }
-    u8 *candidates = bitmap_new(bsize);
-    assert(candidates);
 
-    u8 *taken = bitmap_new(bsize);
-    assert(taken);
+    candidates = bitmap_new(bsize);
+    if (!candidates) {
+      rc = SQLITE_NOMEM;
+      goto knn_cleanup;
+    }
+
+    taken = bitmap_new(bsize);
+    if (!taken) {
+      rc = SQLITE_NOMEM;
+      goto knn_cleanup;
+    }
 
     bitmap_fill(candidates, bsize);
     for (size_t i = bsize; i >= p->blob->nvectors; i--) {
@@ -10679,6 +10696,21 @@ static int vec_static_blob_entriesFilter(sqlite3_vtab_cursor *pVtabCursor,
     knn_data->rowids = topk_rowids;
 
     pCur->knn_data = knn_data;
+
+    // Cleanup temporaries (not owned by knn_data)
+    queryVectorCleanup(queryVector);
+    sqlite3_free(candidates);
+    sqlite3_free(taken);
+    return SQLITE_OK;
+
+knn_cleanup:
+    queryVectorCleanup(queryVector);
+    sqlite3_free(knn_data);
+    sqlite3_free(topk_rowids);
+    sqlite3_free(distances);
+    sqlite3_free(candidates);
+    sqlite3_free(taken);
+    return rc;
   } else {
     pCur->query_plan = VEC_SBE__QUERYPLAN_FULLSCAN;
     pCur->iRowid = 0;
