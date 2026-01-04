@@ -13,7 +13,6 @@
     }
   },
   "scripts": {
-    "install": "bash -c './scripts/vendor.sh && make loadable'",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -52,15 +51,6 @@
     "index.cjs",
     "index.mjs",
     "index.d.ts",
-    "dist/vec0.so",
-    "dist/vec0.dylib",
-    "dist/vec0.dll",
-    "sqlite-vec.c",
-    "sqlite-vec.h",
-    "sqlite-vec.h.tmpl",
-    "VERSION",
-    "vendor/",
-    "scripts/vendor.sh",
-    "Makefile"
+    "dist/"
   ]
 }

@@ -1,0 +1,242 @@
+name: "npm Release"
+
+# Fork-specific workflow for publishing to npm with OIDC
+
+# Separate from release.yaml to make merging upstream changes easier
+
+#
+# APPROACH: We bundle all platform binaries in a single npm package (like
+# prebuildify) rather than using platform-specific optionalDependencies (like
+# esbuild/swc). Rationale:
+#   - Simpler: one package to publish, not 5+ platform packages
+#   - More secure: avoids post-install scripts and dependency on npm registry
+#   - Reliable: works offline, with disabled scripts, and custom registries
+#   - Small overhead: sqlite-vec binaries are ~200KB each, so bundling all is
+#     fine
+
+#
+# FIRST-TIME SETUP (required before this workflow will work):
+#
+# 1. Build and publish the package locally to create it on npm:
+#    ./scripts/vendor.sh make loadable mkdir -p dist/$(node -p "process.platform
+#    + '-' + process.arch") cp dist/vec0.* dist/$(node -p "process.platform +
+#    '-' + process.arch")/ npm login npm publish --access public
+#
+# 2. Configure OIDC trusted publishing on npmjs.com:
+#    - Go to https://www.npmjs.com/package/@USER/sqlite-vec/access
+#    - Under "Publishing access" click "Add a trusted publisher"
+#    - Repository: USER/sqlite-vec
+#    - Workflow: npm-release.yaml
+#    - Environment: (leave blank)
+#
+# 3. Now this workflow can publish subsequent versions automatically
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version bump type"
+        required: false
+        type: choice
+        default: "patch"
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: read
+
+jobs:
+  build-linux-x64:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - run: ./scripts/vendor.sh
+      - run: make loadable
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: linux-x64
+          path: dist/vec0.so
+
+  build-linux-arm64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - run: ./scripts/vendor.sh
+      - run: make sqlite-vec.h
+      - run: make loadable
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: linux-arm64
+          path: dist/vec0.so
+
+  build-linux-x64-musl:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - run: |
+          docker run --rm -v $(pwd):/tmp/project --entrypoint /bin/sh --platform linux/amd64 node:20-alpine -c "\
+          apk add build-base --update-cache && \
+          cd /tmp/project && \
+          ./scripts/vendor.sh && \
+          make loadable"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: linux-x64-musl
+          path: dist/vec0.so
+
+  build-linux-arm64-musl:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - run: |
+          docker run --rm -v $(pwd):/tmp/project --entrypoint /bin/sh --platform linux/arm64 node:20-alpine -c "\
+          apk add build-base --update-cache && \
+          cd /tmp/project && \
+          ./scripts/vendor.sh && \
+          make loadable"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: linux-arm64-musl
+          path: dist/vec0.so
+
+  build-darwin-x64:
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - run: ./scripts/vendor.sh
+      - run: make loadable
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: darwin-x64
+          path: dist/vec0.dylib
+
+  build-darwin-arm64:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - run: ./scripts/vendor.sh
+      - run: make loadable
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: darwin-arm64
+          path: dist/vec0.dylib
+
+  build-win32-x64:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+      - run: ./scripts/vendor.sh
+        shell: bash
+      - run: make sqlite-vec.h
+      - run: mkdir dist
+      - run: cl.exe /fPIC -shared /W4 /Ivendor/ /O2 /LD sqlite-vec.c -o dist/vec0.dll
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: win32-x64
+          path: dist/vec0.dll
+
+  build-win32-arm64:
+    runs-on: windows-11-arm
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          arch: arm64
+      - run: ./scripts/vendor.sh
+        shell: bash
+      - run: make sqlite-vec.h
+      - run: mkdir dist
+      - run: cl.exe /fPIC -shared /W4 /Ivendor/ /O2 /LD sqlite-vec.c -o dist/vec0.dll
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: win32-arm64
+          path: dist/vec0.dll
+
+  publish-npm:
+    runs-on: ubuntu-24.04
+    needs:
+      [
+        build-linux-x64,
+        build-linux-arm64,
+        build-linux-x64-musl,
+        build-linux-arm64-musl,
+        build-darwin-x64,
+        build-darwin-arm64,
+        build-win32-x64,
+        build-win32-arm64,
+      ]
+    permissions:
+      contents: write # Required to push version commits and tags
+      id-token: write # Required for npm OIDC trusted publishing
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0 # Full history for version tags
+
+      # Download all artifacts into platform-specific subdirectories
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: linux-x64
+          path: dist/linux-x64
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: linux-arm64
+          path: dist/linux-arm64
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: linux-x64-musl
+          path: dist/linux-x64-musl
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: linux-arm64-musl
+          path: dist/linux-arm64-musl
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: darwin-x64
+          path: dist/darwin-x64
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: darwin-arm64
+          path: dist/darwin-arm64
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: win32-x64
+          path: dist/win32-x64
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: win32-arm64
+          path: dist/win32-arm64
+
+      - run: ls -laR dist/
+
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - uses: photostructure/git-ssh-signing-action@fdd4b062a9ba41473f013258cc9c7eea1640f826 # v1.2.0
+        with:
+          ssh-signing-key: ${{ secrets.SSH_SIGNING_KEY }}
+          git-user-name: ${{ secrets.GIT_USER_NAME }}
+          git-user-email: ${{ secrets.GIT_USER_EMAIL }}
+
+      - run: npm install -g npm@latest
+
+      - name: Bump version and create signed tag
+        run: |
+          npm version ${{ github.event.inputs.version }} --sign-git-tag -m "release: %s"
+          echo "NEW_VERSION=$(npm pkg get version | tr -d '\"')" >> $GITHUB_ENV
+
+      - name: Push version commit and tag
+        run: git push origin main --follow-tags
+
+      - name: Create GitHub Release
+        run: gh release create "v${{ env.NEW_VERSION }}" --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to npm with OIDC
+        run: npm publish --provenance --access public
