@@ -1,0 +1,89 @@
+# Valgrind suppressions for sqlite-vec
+#
+# These suppressions filter out known issues in SQLite internals
+# so we can focus on actual memory leaks in sqlite-vec code.
+
+# SQLite memory allocator internals (memsys5, etc.)
+{
+   SQLite-MemSys-Reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:sqlite3_*
+   ...
+}
+
+# SQLite mutex/threading internals
+{
+   SQLite-Mutex-Uninit
+   Memcheck:Cond
+   ...
+   fun:*sqlite3*Mutex*
+   ...
+}
+
+# SQLite parser/tokenizer
+{
+   SQLite-Parser-Uninit
+   Memcheck:Cond
+   ...
+   fun:sqlite3*Parse*
+   ...
+}
+
+# SQLite VDBE engine
+{
+   SQLite-VDBE-Uninit
+   Memcheck:Cond
+   ...
+   fun:sqlite3VdbeExec
+   ...
+}
+
+# SQLite B-tree operations
+{
+   SQLite-Btree-Uninit
+   Memcheck:Cond
+   ...
+   fun:sqlite3Btree*
+   ...
+}
+
+# SQLite pager
+{
+   SQLite-Pager-Uninit
+   Memcheck:Cond
+   ...
+   fun:sqlite3Pager*
+   ...
+}
+
+# SQLite virtual table cursor operations (common in extensions)
+{
+   SQLite-VTab-Reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:sqlite3_vtab_*
+   ...
+}
+
+# glibc dlopen internals (when loading extensions)
+{
+   Glibc-DLOpen-Reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:dlopen*
+   ...
+}
+
+# glibc thread-local storage
+{
+   Glibc-TLS-Reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:__tls_get_addr
+   ...
+}

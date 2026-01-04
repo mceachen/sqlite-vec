@@ -1,0 +1,42 @@
+name: Memory Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  memory-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential valgrind clang
+
+      - name: Vendor SQLite
+        run: ./scripts/vendor.sh
+
+      - name: Run Valgrind memory tests
+        run: make test-valgrind
+
+      - name: Run AddressSanitizer tests
+        run: make test-asan
+        env:
+          CC: clang
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: memory-test-logs
+          path: |
+            valgrind.log
+            asan-output.log
+          retention-days: 7

@@ -214,6 +214,52 @@ test-loadable-watch:
 test-unit:
 	$(CC) tests/test-unit.c sqlite-vec.c -I./ -Ivendor -o $(prefix)/test-unit && $(prefix)/test-unit
 
+# ███████████████████████████████ MEMORY TESTING ███████████████████████████████
+
+# AddressSanitizer + LeakSanitizer build (Linux/macOS only)
+# Usage: make loadable-asan
+ASAN_CFLAGS = -fsanitize=address,undefined -fno-omit-frame-pointer -g -O1
+ASAN_LDFLAGS = -fsanitize=address,undefined
+
+$(prefix)/vec0-asan.$(LOADABLE_EXTENSION): sqlite-vec.c sqlite-vec.h $(prefix)
+	$(CC) \
+		-fPIC -shared \
+		-fvisibility=hidden \
+		-Wall -Wextra \
+		-Ivendor/ \
+		$(ASAN_CFLAGS) \
+		$(CFLAGS) $(EXT_CFLAGS) \
+		$< -o $@ \
+		$(ASAN_LDFLAGS) $(EXT_LDFLAGS) $(LDLIBS)
+
+loadable-asan: $(prefix)/vec0-asan.$(LOADABLE_EXTENSION)
+
+# Memory test harness for valgrind (builds CLI with debug symbols)
+$(prefix)/memory-test: tests/memory-test.c sqlite-vec.c vendor/sqlite3.c | $(prefix)
+	$(CC) -g -O0 \
+		-fvisibility=hidden \
+		-Ivendor/ -I./ \
+		-DSQLITE_CORE \
+		-DSQLITE_VEC_STATIC \
+		-DSQLITE_THREADSAFE=0 \
+		$(CFLAGS) $(EXT_CFLAGS) \
+		tests/memory-test.c sqlite-vec.c vendor/sqlite3.c -o $@ \
+		$(EXT_LDFLAGS) -ldl -lm
+
+# Run valgrind memory leak tests
+test-valgrind: $(prefix)/memory-test
+	@./scripts/valgrind-test.sh
+
+# Run AddressSanitizer tests (builds its own ASan-instrumented binary)
+test-asan:
+	@./scripts/sanitizers-test.sh
+
+# Run all memory tests
+test-memory: test-valgrind test-asan
+	@echo "All memory tests completed"
+
+# ███████████████████████████████ END MEMORY TESTING ███████████████████████████
+
 site-dev:
 	npm --prefix site run dev
 
