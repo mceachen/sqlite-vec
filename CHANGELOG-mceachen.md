@@ -1,13 +1,14 @@
-# Changelog (mceachen fork)
+# Changelog (@mceachen/sqlite-vec fork)
 
 All notable changes specific to this community fork's releases will be documented here.
 For upstream changes, see [CHANGELOG.md](CHANGELOG.md).
 
-## [0.3.1] - Unreleased
+## [0.3.1] - 2026-01-04
 
 ### Added
 
 - **Lua binding with IEEE 754 compliant float serialization** ([`1d3c258`](https://github.com/mceachen/sqlite-vec/commit/1d3c258))
+
   - New `bindings/lua/sqlite_vec.lua` module for Lua 5.1+
   - `serialize_f32()` for IEEE 754 binary format
   - `serialize_json()` for JSON format
@@ -25,10 +26,11 @@ For upstream changes, see [CHANGELOG.md](CHANGELOG.md).
 - **Numpy header parsing**: fixed `&&`→`||` logic bug ([`90e0099`](https://github.com/mceachen/sqlite-vec/commit/90e0099))
 
 - **Go bindings patch updated for new SQLite source** ([`ceb488c`](https://github.com/mceachen/sqlite-vec/commit/ceb488c))
+
   - Updated `bindings/go/ncruces/go-sqlite3.patch` for compatibility with latest SQLite
 
 - **npm-release workflow improvements**
-  - Synchronized VERSION file with package.json during version bump ([`c345dab`](https://github.com/mceachen/sqlite-vec/commit/c345dab))
+  - Synchronized VERSION file with package.json during version bump ([`c345dab`](https://github.com/mceachen/sqlite-vec/commit/c345dab), [`baffb9b`](https://github.com/mceachen/sqlite-vec/commit/baffb9b) )
   - Enhanced npm publish to handle prerelease tags (alpha, beta, etc.) ([`0b691fb`](https://github.com/mceachen/sqlite-vec/commit/0b691fb))
 
 ## [0.3.0] - 2026-01-04
