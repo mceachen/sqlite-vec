@@ -3,6 +3,29 @@
 All notable changes specific to this community fork's releases will be documented here.
 For upstream changes, see [CHANGELOG.md](CHANGELOG.md).
 
+## [0.3.2] - 2026-01-04
+
+### Added
+
+- **Memory testing framework** ([`c8654d0`](https://github.com/mceachen/sqlite-vec/commit/c8654d0))
+  - Valgrind and AddressSanitizer support via `make test-memory`
+  - Catches memory leaks, use-after-free, and buffer overflows
+
+### Fixed
+
+- **Memory leaks in KNN queries** ([`e4d3340`](https://github.com/mceachen/sqlite-vec/commit/e4d3340), [`df2c2fc`](https://github.com/mceachen/sqlite-vec/commit/df2c2fc), [`f05a360`](https://github.com/mceachen/sqlite-vec/commit/f05a360))
+  - Fixed leaks in `vec0Filter_knn` metadata IN clause processing
+  - Fixed leaks and potential crashes in `vec_static_blob_entries` filter
+  - Ensured `knn_data` is freed on error paths
+
+- **Memory leaks in vtab lifecycle** ([`5f667d8`](https://github.com/mceachen/sqlite-vec/commit/5f667d8), [`49dcce7`](https://github.com/mceachen/sqlite-vec/commit/49dcce7))
+  - Fixed leaks in `vec0_init` and `vec0Destroy` error paths
+  - Added NULL check before blob read to prevent crashes
+  - `vec0_free` now properly frees partition, auxiliary, and metadata column names
+
+- **Cosine distance with zero vectors** ([`5d1279b`](https://github.com/mceachen/sqlite-vec/commit/5d1279b))
+  - Returns 1.0 (max distance) instead of NaN for zero-magnitude vectors
+
 ## [0.3.1] - 2026-01-04
 
 ### Added
