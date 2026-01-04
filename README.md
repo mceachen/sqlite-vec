@@ -83,7 +83,7 @@ Install directly from GitHub to get the latest features from this community fork
 | **Go** | `go get github.com/vlasky/sqlite-vec/bindings/go/cgo@main` | `go get github.com/vlasky/sqlite-vec/bindings/go/cgo@v0.2.0-alpha` |
 | **Python** | `pip install git+https://github.com/vlasky/sqlite-vec.git` | `pip install git+https://github.com/vlasky/sqlite-vec.git@v0.2.0-alpha` |
 | **Rust** | `cargo add sqlite-vec --git https://github.com/vlasky/sqlite-vec` | `cargo add sqlite-vec --git https://github.com/vlasky/sqlite-vec --tag v0.2.0-alpha` |
-| **Node.js** | `npm install vlasky/sqlite-vec` | `npm install vlasky/sqlite-vec#v0.2.0-alpha` |
+| **Node.js** | `npm install @mceachen/sqlite-vec` | `npm install @mceachen/sqlite-vec#v0.3.0` |
 | **Ruby** | `gem 'sqlite-vec', git: 'https://github.com/vlasky/sqlite-vec'` | `gem 'sqlite-vec', git: 'https://github.com/vlasky/sqlite-vec', tag: 'v0.2.0-alpha'` |
 
 **Python Note:** Requires Python built with loadable extension support (`--enable-loadable-sqlite-extensions`). If you encounter an error about extension support not being available:
