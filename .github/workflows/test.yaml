@@ -22,7 +22,7 @@ jobs:
           name: sqlite-vec-linux-x86_64-extension
           path: dist/*
   build-macos-x86_64-extension:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867 # v7.1.6
@@ -44,6 +44,7 @@ jobs:
       - uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867 # v7.1.6
         with:
           enable-cache: true
+      - run: uv python install 3.12
       - run: ./scripts/vendor.sh
       - run: make loadable static
       - run: uv sync --directory tests
@@ -79,8 +80,6 @@ jobs:
         with:
           task: start-measurement
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          version: "latest"
       - run: sudo apt-get install gcc-arm-linux-gnueabihf
       - run: ./scripts/vendor.sh
       - run: make sqlite-vec.h
@@ -239,7 +238,7 @@ jobs:
           name: sqlite-vec-ncruces-go
           path: go-sqlite3/embed/sqlite3.wasm
   build-cosmopolitan:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - run: |
