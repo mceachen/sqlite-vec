@@ -2469,10 +2469,14 @@ int vec0_parse_vector_column(const char *source, int source_length,
   if (rc != VEC0_TOKEN_RESULT_SOME && token.token_type != TOKEN_TYPE_DIGIT) {
     return SQLITE_ERROR;
   }
-  dimensions = atoi(token.start);
-  if (dimensions <= 0) {
+  errno = 0;
+  char *endptr;
+  long parsed_dimensions = strtol(token.start, &endptr, 10);
+  if (errno == ERANGE || endptr != token.end ||
+      parsed_dimensions <= 0 || parsed_dimensions > INT_MAX) {
     return SQLITE_ERROR;
   }
+  dimensions = (int)parsed_dimensions;
 
   // // right ']' bracket
   rc = vec0_scanner_next(&scanner, &token);
@@ -4949,14 +4953,18 @@ static int vec0_init(sqlite3 *db, void *pAux, int argc, const char *const *argv,
     }
     if (rc == SQLITE_OK) {
       if (sqlite3_strnicmp(key, "chunk_size", keyLength) == 0) {
-        chunk_size = atoi(value);
-        if (chunk_size <= 0) {
+        errno = 0;
+        char *endptr;
+        long parsed_chunk_size = strtol(value, &endptr, 10);
+        if (errno == ERANGE || endptr != value + valueLength ||
+            parsed_chunk_size <= 0 || parsed_chunk_size > INT_MAX) {
           // IMP: V01931_18769
           *pzErr =
               sqlite3_mprintf(VEC_CONSTRUCTOR_ERROR
                               "chunk_size must be a non-zero positive integer");
           goto error;
         }
+        chunk_size = (int)parsed_chunk_size;
         if ((chunk_size % 8) != 0) {
           // IMP: V14110_30948
           *pzErr = sqlite3_mprintf(VEC_CONSTRUCTOR_ERROR
