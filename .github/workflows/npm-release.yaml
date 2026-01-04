@@ -233,7 +233,12 @@ jobs:
       - name: Bump version and create signed tag
         run: |
           npm version ${{ github.event.inputs.version }} --sign-git-tag -m "release: %s"
-          echo "NEW_VERSION=$(npm pkg get version | tr -d '\"')" >> $GITHUB_ENV
+          NEW_VERSION=$(npm pkg get version | tr -d '"')
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          # Keep VERSION file in sync with package.json
+          echo "$NEW_VERSION" > VERSION
+          git add VERSION
+          git commit --amend --no-edit
 
       - name: Push version commit and tag
         run: git push origin main --follow-tags
