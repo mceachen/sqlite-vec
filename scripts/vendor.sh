@@ -8,6 +8,11 @@ SQLITE_ZIP="sqlite-amalgamation-${SQLITE_VERSION}.zip"
 SQLITE_URL="https://www.sqlite.org/${SQLITE_YEAR}/${SQLITE_ZIP}"
 EXPECTED_SHA256="84a85d6a1b920234349f01720912c12391a4f0cb5cb998087e641dee3ef8ef2e"
 
+# Compute expected SQLITE_VERSION_NUMBER from download version
+# Download format: XYYZZPP (X=major, YY=minor, ZZ=release, PP=patch)
+# sqlite3.c format: MAJOR*1000000 + MINOR*1000 + RELEASE
+EXPECTED_VERSION_NUMBER=$((${SQLITE_VERSION:0:1} * 1000000 + 10#${SQLITE_VERSION:1:2} * 1000 + 10#${SQLITE_VERSION:3:2}))
+
 # Compute SHA-256 (works on both Linux and macOS)
 compute_sha256() {
     if command -v sha256sum >/dev/null 2>&1; then
@@ -19,6 +24,17 @@ compute_sha256() {
         exit 1
     fi
 }
+
+# Check if vendor directory already has the correct version
+if [ -f "vendor/sqlite3.c" ]; then
+    CURRENT_VERSION=$(grep -m1 "^#define SQLITE_VERSION_NUMBER" vendor/sqlite3.c | awk '{print $3}')
+    if [ "${CURRENT_VERSION}" = "${EXPECTED_VERSION_NUMBER}" ]; then
+        HUMAN_VERSION=$(grep -m1 "^#define SQLITE_VERSION " vendor/sqlite3.c | awk '{gsub(/"/, "", $3); print $3}')
+        echo "SQLite ${HUMAN_VERSION} already vendored."
+        exit 0
+    fi
+    echo "Found different SQLite version, updating..."
+fi
 
 echo "Downloading SQLite amalgamation ${SQLITE_VERSION}..."
 curl -fSL -o "${SQLITE_ZIP}" "${SQLITE_URL}"
