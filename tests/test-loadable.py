@@ -1628,7 +1628,7 @@ def test_vec0_text_pk():
 
     if SUPPORTS_VTAB_IN:
         assert re.match(
-            ("SCAN (TABLE )?t VIRTUAL TABLE INDEX 0:3{___}___\[___"),
+            (r"SCAN (TABLE )?t VIRTUAL TABLE INDEX 0:3{___}___\[___"),
             explain_query_plan(
                 "select t_id, distance from t where aaa match '' and k = 3 and t_id in ('t_2', 't_3')",
                 db=db,
