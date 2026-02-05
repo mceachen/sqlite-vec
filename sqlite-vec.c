@@ -8852,7 +8852,7 @@ int vec0Update_Insert(sqlite3_vtab *pVTab, int argc, sqlite3_value **argv,
   void *vectorDatas[VEC0_MAX_VECTOR_COLUMNS];
   // Array to hold cleanup functions for vectorDatas[]
   vector_cleanup cleanups[VEC0_MAX_VECTOR_COLUMNS];
-  memset(cleanups, 0, sizeof(cleanups));
+  memset(cleanups, 0, sizeof(cleanups)); // NOLINT(bugprone-multi-level-implicit-pointer-conversion)
 
   sqlite3_value * partitionKeyValues[VEC0_MAX_PARTITION_COLUMNS];
 
