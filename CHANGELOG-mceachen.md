@@ -3,6 +3,38 @@
 All notable changes specific to this community fork's releases will be documented here.
 For upstream changes, see [CHANGELOG.md](CHANGELOG.md).
 
+## [0.3.3] - 2026-02-04
+
+### Fixed
+
+- **Parser logic bugs** ([`45f09c1`](https://github.com/mceachen/sqlite-vec/commit/45f09c1))
+  - Fixed `&&`→`||` condition checks in token validation across multiple parsing functions
+  - Affected: `vec0_parse_table_option`, `vec0_parse_partition_key_definition`, `vec0_parse_auxiliary_column_definition`, `vec0_parse_primary_key_definition`, `vec0_parse_vector_column`
+
+- **Float precision for f32 distance calculations** ([`45f09c1`](https://github.com/mceachen/sqlite-vec/commit/45f09c1))
+  - Use `sqrtf()` instead of `sqrt()` for f32 vectors to avoid unnecessary double precision
+  - May result in minor floating-point differences in distance results
+
+- **Memory leaks in metadata and insert operations** ([`f56fdeb`](https://github.com/mceachen/sqlite-vec/commit/f56fdeb))
+  - Fixed zSql memory leaks in `vec0_write_metadata_value` (never freed on any path)
+  - Fixed zSql leak and missing `sqlite3_finalize` in `vec0Update_Delete_ClearMetadata`
+  - Fixed potential crash from uninitialized function pointers on early error in `vec0Update_Insert`
+  - Fixed memory leak in `vec_static_blob_entriesClose` (internal rowids/distances arrays)
+
+### Added
+
+- **KNN filtering documentation** ([`fd69fed`](https://github.com/mceachen/sqlite-vec/commit/fd69fed))
+  - New documentation explaining when filters are applied during vs. after KNN search
+  - Metadata columns, partition keys, and distance constraints filter DURING search
+  - JOIN filters and subqueries filter AFTER search (may return fewer than k results)
+  - Documented workarounds: use metadata columns or over-fetch with LIMIT
+
+### Infrastructure
+
+- Added clang-tidy static analysis configuration ([`a39311f`](https://github.com/mceachen/sqlite-vec/commit/a39311f))
+- Expanded memory testing with UBSan/TSan support and multi-platform CI matrix ([`de0edf3`](https://github.com/mceachen/sqlite-vec/commit/de0edf3))
+- Fixed test infrastructure: `make test-all` target, auto-detect pytest, fix test-unit linking ([`c39ada1`](https://github.com/mceachen/sqlite-vec/commit/c39ada1))
+
 ## [0.3.2] - 2026-01-04
 
 ### Added
