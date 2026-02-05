@@ -90,6 +90,9 @@ SANITIZER_LDFLAGS="$SANITIZER_FLAGS"
 # Build the sanitizer-instrumented memory test
 echo -e "\n${YELLOW}Building memory-test with $SANITIZER_NAME...${NC}"
 
+# Ensure dist directory exists
+mkdir -p "$ROOT_DIR/dist"
+
 $CC $SANITIZER_CFLAGS \
     -fvisibility=hidden \
     -I"$ROOT_DIR/vendor/" -I"$ROOT_DIR/" \
