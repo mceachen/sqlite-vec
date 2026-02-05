@@ -1,14 +1,9 @@
 
-.load dist/vec0main
+.load dist/vec0
 .bail on
 
 .mode qbox
-
-
-.load ./memstat
 .echo on
-
-select name, value from sqlite_memstat where name = 'MEMORY_USED';
 
 create virtual table v using vec0(
   vector float[1],
@@ -18,7 +13,6 @@ create virtual table v using vec0(
   chunk_size=8
 );
 
-select name, value from sqlite_memstat where name = 'MEMORY_USED';
 
 insert into v(vector, name1, name2, age) values
   ('[1]', 'alex', 'xxxx', 1),
@@ -32,7 +26,6 @@ insert into v(vector, name1, name2, age) values
   ('[9]', 'craig', 'xxxx', 3),
   ('[10]', '123456789012345', 'xxxx', 3);
 
-select name, value from sqlite_memstat where name = 'MEMORY_USED';
 
 select rowid, name1, name2, age, vec_to_json(vector)
 from v
@@ -42,7 +35,6 @@ where vector match '[0]'
   --and name2 in ('aaaa', 'xxxx')
   and age in (1, 2, 3, 2222,3333,4444);
 
-select name, value from sqlite_memstat where name = 'MEMORY_USED';
 
 select rowid, name1, name2, age, vec_to_json(vector)
 from v

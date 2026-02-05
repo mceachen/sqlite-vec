@@ -5,6 +5,12 @@
 
 #define countof(x) (sizeof(x) / sizeof((x)[0]))
 
+/* Internal functions from sqlite-vec.c for unit testing */
+int vec0_parse_partition_key_definition(const char *source, int source_length,
+                                        char **out_column_name,
+                                        int *out_column_name_length,
+                                        int *out_column_type);
+
 void test_vec0_parse_partition_key_definition() {
   printf("Starting %s...\n", __func__);
   typedef struct {

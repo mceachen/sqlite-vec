@@ -44,8 +44,11 @@ LOADABLE_EXTENSION=dll
 endif
 
 
+# Use explicit python= if provided, otherwise prefer venv if it exists
 ifdef python
 PYTHON=$(python)
+else ifneq (,$(wildcard tests/.venv/bin/python))
+PYTHON=tests/.venv/bin/python
 else
 PYTHON=python3
 endif
@@ -189,10 +192,10 @@ progress:
 evidence-of:
 	@echo "EVIDENCE-OF: V$(shell printf "%05d" $$((RANDOM % 100000)))_$(shell printf "%05d" $$((RANDOM % 100000)))"
 
-test:
+test: loadable
 	sqlite3 :memory: '.read test.sql'
 
-.PHONY: version loadable static test clean gh-release evidence-of install uninstall
+.PHONY: version loadable static test test-all clean gh-release evidence-of install uninstall
 
 publish-release:
 	./scripts/publish-release.sh
@@ -212,7 +215,10 @@ test-loadable-watch:
 	watchexec --exts c,py,Makefile --clear -- make test-loadable
 
 test-unit:
-	$(CC) tests/test-unit.c sqlite-vec.c -I./ -Ivendor -o $(prefix)/test-unit && $(prefix)/test-unit
+	$(CC) tests/test-unit.c sqlite-vec.c vendor/sqlite3.c -I./ -Ivendor -DSQLITE_CORE -o $(prefix)/test-unit -lm && $(prefix)/test-unit
+
+# Run all functional tests (excludes memory/sanitizer tests which have extra dependencies)
+test-all: test test-loadable test-unit
 
 # ███████████████████████████████ MEMORY TESTING ███████████████████████████████
 
