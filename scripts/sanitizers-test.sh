@@ -23,12 +23,19 @@ SANITIZER="${1:-asan}"
 
 case "$SANITIZER" in
   asan)
-    SANITIZER_NAME="AddressSanitizer + LeakSanitizer"
-    SANITIZER_FLAGS="-fsanitize=address,leak"
     OUTPUT_FILE="$ROOT_DIR/asan-output.log"
     MEMORY_TEST="$ROOT_DIR/dist/memory-test-asan"
-    ASAN_OPTIONS="detect_leaks=1:halt_on_error=1:print_stats=1:check_initialization_order=1"
-    LSAN_OPTIONS="print_suppressions=0"
+    # LeakSanitizer is not supported on macOS
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+      SANITIZER_NAME="AddressSanitizer"
+      SANITIZER_FLAGS="-fsanitize=address"
+      ASAN_OPTIONS="halt_on_error=1:print_stats=1:check_initialization_order=1"
+    else
+      SANITIZER_NAME="AddressSanitizer + LeakSanitizer"
+      SANITIZER_FLAGS="-fsanitize=address,leak"
+      ASAN_OPTIONS="detect_leaks=1:halt_on_error=1:print_stats=1:check_initialization_order=1"
+      LSAN_OPTIONS="print_suppressions=0"
+    fi
     ;;
   ubsan)
     SANITIZER_NAME="UndefinedBehaviorSanitizer"
