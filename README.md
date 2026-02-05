@@ -13,7 +13,7 @@
 > - Hardening (replaced atoi() with strtol(), vendor.sh SHA validation, pinned GHA versions, OIDC releases)
 > - Update to the latest SQLite release (should be no-op, and backward compatible)
 > - Node.js release added Alpine/MUSL x64/arm64 and Windows arm64 prebuilds
-> - Node.js package now includes all prebuilds (so post-install scriptes!)
+> - Node.js package now includes all prebuilds (no post-install scripts!)
 
 > Feel free to cherry-pick any changes back upstream -- commits are kept small and isolated for this purpose.
 
