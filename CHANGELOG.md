@@ -335,16 +335,5 @@ These paths were not detected by sanitizers because they were never executed by 
 ## Original Version
 
 This fork is based on [`asg017/sqlite-vec`](https://github.com/asg017/sqlite-vec) v0.1.7-alpha.2.
-
 All features and functionality from the original repository are preserved.
 See the [original documentation](https://alexgarcia.xyz/sqlite-vec/) for complete usage information.
-
----
-
-## Notes
-
-This is a community-maintained fork created to merge pending upstream PRs and provide
-continued support while the original author is unavailable. Once development resumes
-on the original repository, users are encouraged to switch back.
-
-All original implementation credit goes to [Alex Garcia](https://github.com/asg017).

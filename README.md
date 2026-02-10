@@ -25,13 +25,6 @@
 An extremely small, "fast enough" vector search SQLite extension that runs
 anywhere! A successor to [`sqlite-vss`](https://github.com/asg017/sqlite-vss)
 
-<!-- deno-fmt-ignore-start -->
-
-> [!IMPORTANT]
-> _`sqlite-vec` is a pre-v1, so expect breaking changes!_
-
-<!-- deno-fmt-ignore-end -->
-
 - Store and query float, int8, and binary vectors in `vec0` virtual tables
 - Written in pure C, no dependencies, runs anywhere SQLite runs
   (Linux/MacOS/Windows, in the browser with WASM, Raspberry Pis, etc.)
@@ -62,28 +55,9 @@ See <a href="#sponsors">the Sponsors section</a> for more details.
 
 ## Installing
 
-### From Original Package Registries
+### Node.js
 
-The original packages on PyPI, npm, RubyGems, and crates.io are maintained by the original author.
-For the latest features from this fork, see "Installing from This Fork" below.
-
-| Language       | Install                                              | More Info                                                                             |                                                                                                                                                                                                    |
-| -------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Python         | `pip install sqlite-vec`                             | [`sqlite-vec` with Python](https://alexgarcia.xyz/sqlite-vec/python.html)             | [![PyPI](https://img.shields.io/pypi/v/sqlite-vec.svg?color=blue&logo=python&logoColor=white)](https://pypi.org/project/sqlite-vec/)                                                               |
-| Node.js        | `npm install sqlite-vec`                             | [`sqlite-vec` with Node.js](https://alexgarcia.xyz/sqlite-vec/js.html)            | [![npm](https://img.shields.io/npm/v/sqlite-vec.svg?color=green&logo=nodedotjs&logoColor=white)](https://www.npmjs.com/package/sqlite-vec)                                                         |
-| Ruby           | `gem install sqlite-vec`                             | [`sqlite-vec` with Ruby](https://alexgarcia.xyz/sqlite-vec/ruby.html)                 | ![Gem](https://img.shields.io/gem/v/sqlite-vec?color=red&logo=rubygems&logoColor=white)                                                                       |
-| Rust           | `cargo add sqlite-vec`                               | [`sqlite-vec` with Rust](https://alexgarcia.xyz/sqlite-vec/rust.html)                 | [![Crates.io](https://img.shields.io/crates/v/sqlite-vec?logo=rust)](https://crates.io/crates/sqlite-vec)                                                                                          |
-| Datasette      | `datasette install datasette-sqlite-vec`             | [`sqlite-vec` with Datasette](https://alexgarcia.xyz/sqlite-vec/datasette.html)       | [![Datasette](https://img.shields.io/pypi/v/datasette-sqlite-vec.svg?color=B6B6D9&label=Datasette+plugin&logoColor=white&logo=python)](https://datasette.io/plugins/datasette-sqlite-vec)          |
-| rqlite         | `rqlited -extensions-path=sqlite-vec.tar.gz`         | [`sqlite-vec` with rqlite](https://alexgarcia.xyz/sqlite-vec/rqlite.html)                        | [![rqlite](https://img.shields.io/badge/rqlite-sqlite_extensions-blue)](https://rqlite.io/docs/guides/extensions/)           |
-| `sqlite-utils` | `sqlite-utils install sqlite-utils-sqlite-vec`       | [`sqlite-vec` with sqlite-utils](https://alexgarcia.xyz/sqlite-vec/sqlite-utils.html) | [![sqlite-utils](https://img.shields.io/pypi/v/sqlite-utils-sqlite-vec.svg?color=B6B6D9&label=sqlite-utils+plugin&logoColor=white&logo=python)](https://datasette.io/plugins/datasette-sqlite-vec) |
-
-### Installing from PhotoStructure's Fork
-
-Install directly from npm or GitHub to get PhotoStructure's production-ready fork with additional features and comprehensive testing.
-
-#### Node.js (Recommended)
-
-PhotoStructure publishes prebuilt binaries to npm for all major platforms:
+Prebuilt binaries for all major platforms are published to npm:
 
 ```bash
 npm install @photostructure/sqlite-vec
@@ -93,43 +67,9 @@ npm install @photostructure/sqlite-vec
 
 **Supported platforms:** Linux (x64, ARM64, musl), macOS (x64, ARM64), Windows (x64, ARM64)
 
-#### Other Languages (Build from Source)
+### Other Languages
 
-| Language | Install Latest (main branch) | Install Specific Version |
-|----------|------------------------------|--------------------------|
-| **Go** | `go get github.com/photostructure/sqlite-vec/bindings/go/cgo@main` | `go get github.com/photostructure/sqlite-vec/bindings/go/cgo@v0.4.1` |
-| **Lua** | `luarocks install lsqlite3` then copy [`sqlite_vec.lua`](bindings/lua/) to your project. See [Lua example](/examples/simple-lua/) | Download [`sqlite_vec.lua` at v0.4.1](https://github.com/photostructure/sqlite-vec/blob/v0.4.1/bindings/lua/sqlite_vec.lua) |
-| **Python** | `pip install git+https://github.com/photostructure/sqlite-vec.git` | `pip install git+https://github.com/photostructure/sqlite-vec.git@v0.4.1` |
-| **Ruby** | `gem 'sqlite-vec', git: 'https://github.com/photostructure/sqlite-vec'` | `gem 'sqlite-vec', git: 'https://github.com/photostructure/sqlite-vec', tag: 'v0.4.1'` |
-| **Rust** | `cargo add sqlite-vec --git https://github.com/photostructure/sqlite-vec` | `cargo add sqlite-vec --git https://github.com/photostructure/sqlite-vec --tag v0.4.1` |
-
-**Python Note:** Requires Python built with loadable extension support (`--enable-loadable-sqlite-extensions`). If you encounter errors:
-- Use `uv` to create virtual environments (uses system Python with extension support)
-- Or use system Python instead of pyenv/custom builds
-- Or rebuild your Python with `./configure --enable-loadable-sqlite-extensions`
-
-**Available version tags:** See [Releases](https://github.com/photostructure/sqlite-vec/releases)
-
-#### Build from Source
-
-For direct C usage or other languages:
-
-```bash
-git clone https://github.com/vlasky/sqlite-vec.git
-cd sqlite-vec
-./scripts/vendor.sh  # Download vendored dependencies
-make loadable        # Builds dist/vec0.so (or .dylib/.dll)
-```
-
-#### Not Yet Available
-
-- Pre-built binaries via GitHub Releases
-- Package registry publications (PyPI, npm, RubyGems, crates.io)
-- Datasette/sqlite-utils plugins
-
-For these, use the original packages until this fork's CI/CD is configured.
-
-See the [original documentation](https://alexgarcia.xyz/sqlite-vec/installation.html) for detailed usage information.
+For Python, Ruby, Rust, Go, and other language bindings, see the original [`asg017/sqlite-vec`](https://github.com/asg017/sqlite-vec) or [Vlad Lasky's fork](https://github.com/vlasky/sqlite-vec). This fork only publishes the Node.js package.
 
 ## Electron
 
