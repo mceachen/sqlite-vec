@@ -1,7 +1,7 @@
 {
-  "name": "@mceachen/sqlite-vec",
+  "name": "@photostructure/sqlite-vec",
   "version": "0.4.1",
-  "description": "A vector search SQLite extension that runs anywhere",
+  "description": "A vector search SQLite extension that runs anywhere - PhotoStructure's production-ready fork",
   "main": "./index.cjs",
   "module": "./index.mjs",
   "types": "./index.d.ts",
@@ -17,7 +17,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mceachen/sqlite-vec.git"
+    "url": "git+https://github.com/photostructure/sqlite-vec.git"
   },
   "keywords": [
     "sqlite",
@@ -33,9 +33,9 @@
   ],
   "license": "(MIT OR Apache-2.0)",
   "bugs": {
-    "url": "https://github.com/mceachen/sqlite-vec/issues"
+    "url": "https://github.com/photostructure/sqlite-vec/issues"
   },
-  "homepage": "https://github.com/mceachen/sqlite-vec#readme",
+  "homepage": "https://github.com/photostructure/sqlite-vec#readme",
   "engines": {
     "node": ">=14.0.0"
   },
