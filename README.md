@@ -20,7 +20,7 @@
 > - **Features:** Distance constraints, OPTIMIZE command, ALTER TABLE RENAME, GLOB/LIKE operators
 > - **Documentation:** Comprehensive error path coverage, KNN filtering behavior, production deployment guides
 >
-> Maintained by PhotoStructure Inc. Contributions welcome. See [CHANGELOG-mceachen.md](CHANGELOG-mceachen.md) for detailed changes.
+> Maintained by PhotoStructure Inc. Contributions welcome. See [CHANGELOG.md](CHANGELOG.md) for detailed changes.
 
 An extremely small, "fast enough" vector search SQLite extension that runs
 anywhere! A successor to [`sqlite-vss`](https://github.com/asg017/sqlite-vss)
