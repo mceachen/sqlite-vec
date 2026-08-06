@@ -271,6 +271,19 @@ lint: SHELL := /bin/bash
 lint:
 	diff -u <(cat $(FORMAT_FILES)) <(clang-format $(FORMAT_FILES))
 
+# ── preflight ─────────────────────────────────────────────────────────────────────
+# Every PhotoStructure repo exposes `make preflight`: run everything that should
+# pass before cutting a release. Sub-makes rather than prerequisites so the steps
+# stay ordered even under `make -j`. `test-all` needs the python test environment
+# (see tests/) and clang-format/black for `format`.
+.PHONY: preflight
+
+preflight:
+	$(MAKE) format
+	$(MAKE) lint
+	$(MAKE) all
+	$(MAKE) test-all
+
 # ── install / uninstall ───────────────────────────────────────────────────────────
 .PHONY: install uninstall
 

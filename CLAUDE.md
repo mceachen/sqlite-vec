@@ -24,6 +24,9 @@ Key features:
 
 Run `./scripts/vendor.sh` first to download vendored dependencies (sqlite3.c, shell.c).
 
+**Before a release:**
+- `make preflight` - format, lint, build all targets, and run `test-all` (needs the python test venv)
+
 **Core builds:**
 - `make loadable` - Build `dist/vec0.{so,dylib,dll}` loadable extension
 - `make static` - Build `dist/libsqlite_vec0.a` static library and `dist/sqlite-vec.h` header
