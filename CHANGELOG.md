@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Fixed the rowid comparator used by the KNN `rowid IN (...)` filter: it returned the 64-bit rowid difference narrowed to `int`. The subtraction can overflow and the narrowing keeps only the low 32 bits, so unequal rowids could compare as equal or with the wrong sign (e.g. a difference of 2^31 wraps negative, and exactly 2^32 wraps to zero) — an inconsistent ordering for `qsort` (undefined behavior) and silent `bsearch` misses that dropped matching rowids from KNN results. Now uses a proper three-way comparison, verified with rowids spanning more than 2^31 including negatives.
+- Fixed error reporting for non-primary-key failures during explicit-rowid inserts: the message was built from a NULL statement handle, so it always read "out of memory" instead of the underlying SQLite error.
+- Added test coverage for negative and large-magnitude rowids (insert, point lookup, update, delete, KNN, metadata/auxiliary/partition columns, `rowid IN (...)`).
+
 ## [1.2.0] - 2026-07-06
 
 ### Removed

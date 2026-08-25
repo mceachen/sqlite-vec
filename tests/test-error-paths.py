@@ -261,5 +261,23 @@ def test_repeated_error_operations(db):
     db.execute("DROP TABLE test")
 
 
+def test_rowids_shadow_insert_reports_real_error(db):
+    """
+    Regression test: a non-primary-key failure during an explicit-rowid
+    insert used sqlite3_errmsg(sqlite3_db_handle(stmtRowidsInsertId)), but
+    that statement is never prepared on the explicit-rowid path, so the
+    error surfaced as "out of memory" instead of the real message.
+    """
+    db.execute("CREATE VIRTUAL TABLE test USING vec0(v float[1])")
+    db.execute("INSERT INTO test(rowid, v) VALUES (1, '[1]')")
+    # Break the rowids shadow table so the next explicit-rowid insert fails
+    # with something other than a primary-key conflict.
+    db.execute("DROP TABLE test_rowids")
+    with pytest.raises(sqlite3.OperationalError) as excinfo:
+        db.execute("INSERT INTO test(rowid, v) VALUES (2, '[2]')")
+    assert "out of memory" not in str(excinfo.value)
+    assert "no such table" in str(excinfo.value)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

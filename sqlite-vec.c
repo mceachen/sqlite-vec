@@ -1183,7 +1183,11 @@ int ensure_vector_match(sqlite3_value *aValue, sqlite3_value *bValue, void **a,
   return SQLITE_OK;
 }
 
-int _cmp(const void *a, const void *b) { return (*(i64 *)a - *(i64 *)b); }
+static int _cmp(const void *a, const void *b) {
+  i64 x = *(i64 *)a;
+  i64 y = *(i64 *)b;
+  return (x > y) - (x < y);
+}
 
 struct VecNpyFile {
   char *path;
@@ -4470,7 +4474,7 @@ int vec0_rowids_insert_rowid(vec0_vtab *p, i64 rowid) {
       // IMP: V04679_21517
       vtab_set_error(&p->base,
                      "Error inserting rowid into rowids shadow table: %s",
-                     sqlite3_errmsg(sqlite3_db_handle(p->stmtRowidsInsertId)));
+                     sqlite3_errmsg(p->db));
     }
     rc = SQLITE_ERROR;
     goto cleanup;
@@ -4536,7 +4540,7 @@ int vec0_rowids_insert_id(vec0_vtab *p, sqlite3_value *idValue, i64 *rowid) {
       // IMP: V15177_32015
       vtab_set_error(&p->base,
                      "Error inserting id into rowids shadow table: %s",
-                     sqlite3_errmsg(sqlite3_db_handle(p->stmtRowidsInsertId)));
+                     sqlite3_errmsg(p->db));
     }
     rc = SQLITE_ERROR;
     goto complete;
