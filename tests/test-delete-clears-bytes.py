@@ -73,7 +73,9 @@ def test_vacuum_shrinks_file(tmp_path):
     con.row_factory = sqlite3.Row
     if hasattr(con, "enable_load_extension"):
         con.enable_load_extension(True)
-        ext = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dist", "vec0"))
+        ext = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "dist", "vec0")
+        )
         try:
             con.load_extension(ext)
         except Exception:

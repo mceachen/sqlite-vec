@@ -9,9 +9,8 @@ db.row_factory = sqlite3.Row
 db.execute('attach database "sift1m-base.db" as sift1m')
 
 
-#def test_sift1m():
-rows = db.execute(
-  '''
+# def test_sift1m():
+rows = db.execute("""
     with q as (
       select rowid, vector, k100 from sift1m.sift1m_query limit 10
     ),
@@ -35,15 +34,16 @@ rows = db.execute(
       json_group_array(vec_rowid order by distance) == k100_groundtruth
     from results
     group by 1;
-  ''').fetchall()
+  """).fetchall()
 
 results = []
 for row in rows:
-  actual = json.loads(row["topk"])
-  expected = json.loads(row["k100_groundtruth"])
+    actual = json.loads(row["topk"])
+    expected = json.loads(row["k100_groundtruth"])
 
-  ncorrect = sum([x in expected for x in actual])
-  results.append(ncorrect / 100.0)
+    ncorrect = sum([x in expected for x in actual])
+    results.append(ncorrect / 100.0)
 
 from statistics import mean
+
 print(mean(results))

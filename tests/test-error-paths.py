@@ -91,7 +91,9 @@ class TestVecSliceErrorPaths:
 
     def test_vec_slice_with_start_equal_to_end(self, db):
         """Test vec_slice with start == end (zero-length result)."""
-        with _raises("slice 'start' index is equal to the 'end' index, vectors must have non-zero length"):
+        with _raises(
+            "slice 'start' index is equal to the 'end' index, vectors must have non-zero length"
+        ):
             db.execute("SELECT vec_slice(vec_f32('[1,2,3]'), 1, 1)").fetchone()
 
     def test_vec_slice_int8_with_out_of_bounds(self, db):
@@ -136,12 +138,16 @@ class TestVectorFromValueErrorPaths:
     def test_vec_distance_l2_with_mismatched_types(self, db):
         """Test vec_distance_l2 with mismatched vector types."""
         with pytest.raises(sqlite3.OperationalError):
-            db.execute("SELECT vec_distance_l2(vec_f32('[1,2,3]'), vec_int8('[1,2,3]'))").fetchone()
+            db.execute(
+                "SELECT vec_distance_l2(vec_f32('[1,2,3]'), vec_int8('[1,2,3]'))"
+            ).fetchone()
 
     def test_vec_distance_l2_with_mismatched_dimensions(self, db):
         """Test vec_distance_l2 with mismatched dimensions."""
         with pytest.raises(sqlite3.OperationalError):
-            db.execute("SELECT vec_distance_l2(vec_f32('[1,2,3]'), vec_f32('[1,2,3,4]'))").fetchone()
+            db.execute(
+                "SELECT vec_distance_l2(vec_f32('[1,2,3]'), vec_f32('[1,2,3,4]'))"
+            ).fetchone()
 
     def test_vec_add_with_null(self, db):
         """Test vec_add with NULL input."""
@@ -151,12 +157,16 @@ class TestVectorFromValueErrorPaths:
     def test_vec_add_with_mismatched_dimensions(self, db):
         """Test vec_add with mismatched dimensions."""
         with pytest.raises(sqlite3.OperationalError):
-            db.execute("SELECT vec_add(vec_f32('[1,2]'), vec_f32('[1,2,3]'))").fetchone()
+            db.execute(
+                "SELECT vec_add(vec_f32('[1,2]'), vec_f32('[1,2,3]'))"
+            ).fetchone()
 
     def test_vec_sub_with_mismatched_types(self, db):
         """Test vec_sub with mismatched types."""
         with pytest.raises(sqlite3.OperationalError):
-            db.execute("SELECT vec_sub(vec_f32('[1,2,3]'), vec_int8('[1,2,3]'))").fetchone()
+            db.execute(
+                "SELECT vec_sub(vec_f32('[1,2,3]'), vec_int8('[1,2,3]'))"
+            ).fetchone()
 
 
 class TestVec0ErrorPaths:
@@ -201,7 +211,9 @@ class TestVec0ErrorPaths:
         db.execute("CREATE VIRTUAL TABLE test USING vec0(v float[3])")
         db.execute("INSERT INTO test(rowid, v) VALUES (1, vec_f32('[1,2,3]'))")
         with pytest.raises(sqlite3.OperationalError):
-            db.execute("SELECT * FROM test WHERE v MATCH vec_f32('[1,2,3,4]') AND k = 5").fetchall()
+            db.execute(
+                "SELECT * FROM test WHERE v MATCH vec_f32('[1,2,3,4]') AND k = 5"
+            ).fetchall()
         db.execute("DROP TABLE test")
 
     def test_vec0_knn_with_mismatched_type(self, db):
@@ -209,7 +221,9 @@ class TestVec0ErrorPaths:
         db.execute("CREATE VIRTUAL TABLE test USING vec0(v float[3])")
         db.execute("INSERT INTO test(rowid, v) VALUES (1, vec_f32('[1,2,3]'))")
         with pytest.raises(sqlite3.OperationalError):
-            db.execute("SELECT * FROM test WHERE v MATCH vec_int8('[1,2,3]') AND k = 5").fetchall()
+            db.execute(
+                "SELECT * FROM test WHERE v MATCH vec_int8('[1,2,3]') AND k = 5"
+            ).fetchall()
         db.execute("DROP TABLE test")
 
     def test_vec0_metadata_insert_with_null_metadata(self, db):
@@ -217,13 +231,17 @@ class TestVec0ErrorPaths:
         db.execute("CREATE VIRTUAL TABLE test USING vec0(v float[3], category text)")
         # NULL metadata is not supported - should error
         with pytest.raises(sqlite3.OperationalError):
-            db.execute("INSERT INTO test(rowid, v, category) VALUES (1, vec_f32('[1,2,3]'), NULL)")
+            db.execute(
+                "INSERT INTO test(rowid, v, category) VALUES (1, vec_f32('[1,2,3]'), NULL)"
+            )
         db.execute("DROP TABLE test")
 
     def test_vec0_with_invalid_metadata_filter(self, db):
         """Test query with invalid metadata IN clause."""
         db.execute("CREATE VIRTUAL TABLE test USING vec0(v float[3], score integer)")
-        db.execute("INSERT INTO test(rowid, v, score) VALUES (1, vec_f32('[1,2,3]'), 100)")
+        db.execute(
+            "INSERT INTO test(rowid, v, score) VALUES (1, vec_f32('[1,2,3]'), 100)"
+        )
 
         # This exercises the metadata IN clause path
         result = db.execute(
@@ -248,15 +266,21 @@ def test_repeated_error_operations(db):
     for i in range(50):
         # Invalid dimension
         with pytest.raises(sqlite3.OperationalError):
-            db.execute("INSERT INTO test(rowid, v) VALUES (?, vec_f32('[1,2,3,4]'))", [i + 2])
+            db.execute(
+                "INSERT INTO test(rowid, v) VALUES (?, vec_f32('[1,2,3,4]'))", [i + 2]
+            )
 
         # Invalid type
         with pytest.raises(sqlite3.OperationalError):
-            db.execute("INSERT INTO test(rowid, v) VALUES (?, vec_int8('[1,2,3]'))", [i + 2])
+            db.execute(
+                "INSERT INTO test(rowid, v) VALUES (?, vec_int8('[1,2,3]'))", [i + 2]
+            )
 
         # Invalid KNN query
         with pytest.raises(sqlite3.OperationalError):
-            db.execute("SELECT * FROM test WHERE v MATCH vec_f32('[1,2,3,4]') AND k = 5").fetchall()
+            db.execute(
+                "SELECT * FROM test WHERE v MATCH vec_f32('[1,2,3,4]') AND k = 5"
+            ).fetchall()
 
     db.execute("DROP TABLE test")
 

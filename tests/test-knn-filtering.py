@@ -4,6 +4,7 @@ Tests demonstrating KNN filtering behavior: metadata columns vs JOINs.
 Key insight: Filters on metadata columns are applied DURING the KNN search,
 while filters on joined tables are applied AFTER. This affects result counts.
 """
+
 import pytest
 
 
@@ -24,7 +25,7 @@ def test_metadata_filter_during_knn(db):
         category = "electronics" if i < 5 else "clothing"
         db.execute(
             "INSERT INTO products(rowid, embedding, category) VALUES (?, ?, ?)",
-            [i, f"[{i}, {i}, {i}, {i}]", category]
+            [i, f"[{i}, {i}, {i}, {i}]", category],
         )
 
     # Request k=5 with category filter - gets 5 electronics
@@ -65,11 +66,10 @@ def test_join_filter_after_knn(db):
         category = "electronics" if i < 5 else "clothing"
         db.execute(
             "INSERT INTO products(rowid, embedding) VALUES (?, ?)",
-            [i, f"[{i}, {i}, {i}, {i}]"]
+            [i, f"[{i}, {i}, {i}, {i}]"],
         )
         db.execute(
-            "INSERT INTO categories(product_id, category) VALUES (?, ?)",
-            [i, category]
+            "INSERT INTO categories(product_id, category) VALUES (?, ?)", [i, category]
         )
 
     # Request k=5 with JOIN filter - KNN returns 5 nearest (rowids 0-4),
@@ -113,11 +113,10 @@ def test_join_filter_reduces_results(db):
         category = "electronics" if i % 2 == 0 else "clothing"
         db.execute(
             "INSERT INTO products(rowid, embedding) VALUES (?, ?)",
-            [i, f"[{i}, {i}, {i}, {i}]"]
+            [i, f"[{i}, {i}, {i}, {i}]"],
         )
         db.execute(
-            "INSERT INTO categories(product_id, category) VALUES (?, ?)",
-            [i, category]
+            "INSERT INTO categories(product_id, category) VALUES (?, ?)", [i, category]
         )
 
     # Request k=5, but filter for electronics
@@ -160,11 +159,10 @@ def test_subquery_also_filters_after(db):
         category = "electronics" if i % 2 == 0 else "clothing"
         db.execute(
             "INSERT INTO products(rowid, embedding) VALUES (?, ?)",
-            [i, f"[{i}, {i}, {i}, {i}]"]
+            [i, f"[{i}, {i}, {i}, {i}]"],
         )
         db.execute(
-            "INSERT INTO categories(product_id, category) VALUES (?, ?)",
-            [i, category]
+            "INSERT INTO categories(product_id, category) VALUES (?, ?)", [i, category]
         )
 
     # CTE approach - same problem
@@ -205,11 +203,10 @@ def test_workaround_increase_k(db):
         category = "electronics" if i % 2 == 0 else "clothing"
         db.execute(
             "INSERT INTO products(rowid, embedding) VALUES (?, ?)",
-            [i, f"[{i}, {i}, {i}, {i}]"]
+            [i, f"[{i}, {i}, {i}, {i}]"],
         )
         db.execute(
-            "INSERT INTO categories(product_id, category) VALUES (?, ?)",
-            [i, category]
+            "INSERT INTO categories(product_id, category) VALUES (?, ?)", [i, category]
         )
 
     # Request k=10 (2x what we need), then filter and limit
@@ -241,7 +238,7 @@ def test_solution_use_metadata_columns(db):
         category = "electronics" if i % 2 == 0 else "clothing"
         db.execute(
             "INSERT INTO products(rowid, embedding, category) VALUES (?, ?, ?)",
-            [i, f"[{i}, {i}, {i}, {i}]", category]
+            [i, f"[{i}, {i}, {i}, {i}]", category],
         )
 
     # Filter applied DURING KNN search

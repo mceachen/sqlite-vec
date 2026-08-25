@@ -424,8 +424,11 @@ def test_vec_distance_cosine():
     # Use isclose since sqrtf precision differs from sqrt
     assert isclose(
         vec_distance_cosine("[1.1, 1.0]", "[1.2, 1.2]"),
-        npy_cosine(np.array([1.1, 1.0], dtype=np.float32), np.array([1.2, 1.2], dtype=np.float32)),
-        abs_tol=1e-6
+        npy_cosine(
+            np.array([1.1, 1.0], dtype=np.float32),
+            np.array([1.2, 1.2], dtype=np.float32),
+        ),
+        abs_tol=1e-6,
     )
 
     vec_distance_cosine_bit = lambda *args: db.execute(
@@ -433,20 +436,21 @@ def test_vec_distance_cosine():
     ).fetchone()[0]
     assert isclose(
         vec_distance_cosine_bit(b"\xff", b"\x01"),
-        npy_cosine([1,1,1,1,1,1,1,1], [0,0,0,0,0,0,0,1]),
-        abs_tol=1e-6
+        npy_cosine([1, 1, 1, 1, 1, 1, 1, 1], [0, 0, 0, 0, 0, 0, 0, 1]),
+        abs_tol=1e-6,
     )
     assert isclose(
         vec_distance_cosine_bit(b"\xab", b"\xab"),
-        npy_cosine([1,0,1,0,1,0,1,1], [1,0,1,0,1,0,1,1]),
-        abs_tol=1e-6
+        npy_cosine([1, 0, 1, 0, 1, 0, 1, 1], [1, 0, 1, 0, 1, 0, 1, 1]),
+        abs_tol=1e-6,
     )
     # test 64-bit
     assert isclose(
         vec_distance_cosine_bit(b"\xaa" * 8, b"\xff" * 8),
-        npy_cosine([1,0] * 32, [1] * 64),
-        abs_tol=1e-6
+        npy_cosine([1, 0] * 32, [1] * 64),
+        abs_tol=1e-6,
     )
+
 
 def test_vec_distance_cosine_zero_vector():
     """Test that cosine distance handles zero vectors gracefully.
@@ -480,6 +484,7 @@ def test_vec_distance_cosine_zero_vector():
     assert vec_distance_cosine_bit(b"\xff", b"\x00") == 1.0
     assert vec_distance_cosine_bit(b"\x00", b"\x00") == 1.0
 
+
 def test_ensure_vector_match_cleanup_on_second_vector_error():
     """
     Test that ensure_vector_match properly cleans up the first vector
@@ -499,11 +504,14 @@ def test_ensure_vector_match_cleanup_on_second_vector_error():
     # This will fail in fvec_from_value with "invalid float32 vector BLOB length"
     invalid_vector = b"\x01\x02\x03\x04\x05"
 
-    with pytest.raises(sqlite3.OperationalError, match=r"^Error reading 2nd vector: invalid float32 vector BLOB length\. Must be divisible by 4, found 5$"):
+    with pytest.raises(
+        sqlite3.OperationalError,
+        match=r"^Error reading 2nd vector: invalid float32 vector BLOB length\. Must be divisible by 4, found 5$",
+    ):
         db.execute(
-            "select vec_distance_cosine(?, ?)",
-            [valid_vector_json, invalid_vector]
+            "select vec_distance_cosine(?, ?)", [valid_vector_json, invalid_vector]
         ).fetchone()
+
 
 def test_vec_distance_hamming():
     vec_distance_hamming = lambda *args: db.execute(
@@ -616,8 +624,8 @@ def test_vec_length():
         vec_length = lambda *args: db.execute("select vec_length(?)", args).fetchone()[
             0
         ]
-        assert vec_length(b"\xAA\xBB\xCC\xDD") == 1
-        assert vec_length(b"\xAA\xBB\xCC\xDD\x01\x02\x03\x04") == 2
+        assert vec_length(b"\xaa\xbb\xcc\xdd") == 1
+        assert vec_length(b"\xaa\xbb\xcc\xdd\x01\x02\x03\x04") == 2
         assert vec_length(f32_zerod(1024)) == 1024
 
         with pytest.raises(
@@ -633,9 +641,9 @@ def test_vec_length():
         vec_length_int8 = lambda *args: db.execute(
             "select vec_length(vec_int8(?))", args
         ).fetchone()[0]
-        assert vec_length_int8(b"\xAA") == 1
-        assert vec_length_int8(b"\xAA\xBB\xCC\xDD") == 4
-        assert vec_length_int8(b"\xAA\xBB\xCC\xDD\x01\x02\x03\x04") == 8
+        assert vec_length_int8(b"\xaa") == 1
+        assert vec_length_int8(b"\xaa\xbb\xcc\xdd") == 4
+        assert vec_length_int8(b"\xaa\xbb\xcc\xdd\x01\x02\x03\x04") == 8
 
         with pytest.raises(
             sqlite3.OperationalError, match="zero-length vectors are not supported."
@@ -646,9 +654,9 @@ def test_vec_length():
         vec_length_bit = lambda *args: db.execute(
             "select vec_length(vec_bit(?))", args
         ).fetchone()[0]
-        assert vec_length_bit(b"\xAA") == 8
-        assert vec_length_bit(b"\xAA\xBB\xCC\xDD") == 8 * 4
-        assert vec_length_bit(b"\xAA\xBB\xCC\xDD\x01\x02\x03\x04") == 8 * 8
+        assert vec_length_bit(b"\xaa") == 8
+        assert vec_length_bit(b"\xaa\xbb\xcc\xdd") == 8 * 4
+        assert vec_length_bit(b"\xaa\xbb\xcc\xdd\x01\x02\x03\x04") == 8 * 8
 
         with pytest.raises(
             sqlite3.OperationalError, match="zero-length vectors are not supported."
@@ -682,20 +690,20 @@ def test_vec_slice():
     assert vec_slice(_int8([1, 2, 3]), 0, 3, f="vec_int8(?)") == _int8([1, 2, 3])
     assert vec_slice(_int8([1, 2, 3]), 0, 2, f="vec_int8(?)") == _int8([1, 2])
     assert vec_slice(_int8([1, 2, 3]), 0, 1, f="vec_int8(?)") == _int8([1])
-    assert vec_slice(b"\xAA\xBB\xCC\xDD", 0, 8, f="vec_bit(?)") == b"\xAA"
-    assert vec_slice(b"\xAA\xBB\xCC\xDD", 8, 16, f="vec_bit(?)") == b"\xBB"
-    assert vec_slice(b"\xAA\xBB\xCC\xDD", 8, 24, f="vec_bit(?)") == b"\xBB\xCC"
-    assert vec_slice(b"\xAA\xBB\xCC\xDD", 0, 32, f="vec_bit(?)") == b"\xAA\xBB\xCC\xDD"
+    assert vec_slice(b"\xaa\xbb\xcc\xdd", 0, 8, f="vec_bit(?)") == b"\xaa"
+    assert vec_slice(b"\xaa\xbb\xcc\xdd", 8, 16, f="vec_bit(?)") == b"\xbb"
+    assert vec_slice(b"\xaa\xbb\xcc\xdd", 8, 24, f="vec_bit(?)") == b"\xbb\xcc"
+    assert vec_slice(b"\xaa\xbb\xcc\xdd", 0, 32, f="vec_bit(?)") == b"\xaa\xbb\xcc\xdd"
 
     with pytest.raises(
         sqlite3.OperationalError, match="start index must be divisible by 8."
     ):
-        vec_slice(b"\xAA\xBB\xCC\xDD", 2, 32, f="vec_bit(?)")
+        vec_slice(b"\xaa\xbb\xcc\xdd", 2, 32, f="vec_bit(?)")
 
     with pytest.raises(
         sqlite3.OperationalError, match="end index must be divisible by 8."
     ):
-        vec_slice(b"\xAA\xBB\xCC\xDD", 0, 31, f="vec_bit(?)")
+        vec_slice(b"\xaa\xbb\xcc\xdd", 0, 31, f="vec_bit(?)")
 
     with pytest.raises(
         sqlite3.OperationalError, match="slice 'start' index must be a postive number."
@@ -834,15 +842,13 @@ def test_vec0():
 
 def test_vec0_inserts():
     db = connect(EXT_PATH)
-    db.execute(
-        """
+    db.execute("""
           create virtual table t using vec0(
             aaa float[128],
             bbb int8[128],
             ccc bit[128]
           );
-        """
-    )
+        """)
 
     db.execute(
         "insert into t values (?, ?, vec_int8(?), vec_bit(?))",
@@ -1044,7 +1050,7 @@ def test_vec0_locale_independent():
 
     # Try to set a non-C locale that uses comma as decimal separator
     # Common locales: fr_FR, de_DE, it_IT, es_ES, pt_BR, etc.
-    test_locales = ['fr_FR.UTF-8', 'de_DE.UTF-8', 'it_IT.UTF-8', 'C.UTF-8']
+    test_locales = ["fr_FR.UTF-8", "de_DE.UTF-8", "it_IT.UTF-8", "C.UTF-8"]
     locale_set = False
     original_locale = locale.setlocale(locale.LC_NUMERIC)
 
@@ -1083,8 +1089,7 @@ def test_vec0_locale_independent():
 def test_vec0_insert_errors2():
     db = connect(EXT_PATH)
     db.execute("create virtual table t1 using vec0(aaa float[4], chunk_size=8)")
-    db.execute(
-        """
+    db.execute("""
       insert into t1(aaa) values
       ('[1,1,1,1]'),
       ('[2,1,1,1]'),
@@ -1092,8 +1097,7 @@ def test_vec0_insert_errors2():
       ('[4,1,1,1]'),
       ('[5,1,1,1]'),
       ('[6,1,1,1]')
-    """
-    )
+    """)
     assert execute_all(db, "select * from t1_chunks") == [
         {
             "chunk_id": 1,
@@ -1109,13 +1113,11 @@ def test_vec0_insert_errors2():
             "validity": b"?",  # 0b00111111
         }
     ]
-    db.execute(
-        """
+    db.execute("""
       insert into t1(aaa) values
       ('[7,1,1,1]'),
       ('[8,1,1,1]')
-    """
-    )
+    """)
     assert execute_all(db, "select * from t1_chunks") == [
         {
             "chunk_id": 1,
@@ -1169,8 +1171,7 @@ def test_vec0_drops():
 def test_vec0_delete():
     db = connect(EXT_PATH)
     db.execute("create virtual table t1 using vec0(aaa float[4], chunk_size=8)")
-    db.execute(
-        """
+    db.execute("""
       insert into t1(aaa) values
       ('[1,1,1,1]'),
       ('[2,1,1,1]'),
@@ -1178,8 +1179,7 @@ def test_vec0_delete():
       ('[4,1,1,1]'),
       ('[5,1,1,1]'),
       ('[6,1,1,1]')
-    """
-    )
+    """)
     assert execute_all(db, "select * from t1_rowids") == [
         {
             "chunk_id": 1,
@@ -1302,8 +1302,7 @@ def test_vec0_delete():
 def test_vec0_delete_errors():
     db = connect(EXT_PATH)
     db.execute("create virtual table t1 using vec0(aaa float[4], chunk_size=8)")
-    db.execute(
-        """
+    db.execute("""
       insert into t1(aaa) values
       ('[1,1,1,1]'),
       ('[2,1,1,1]'),
@@ -1311,8 +1310,7 @@ def test_vec0_delete_errors():
       ('[4,1,1,1]'),
       ('[5,1,1,1]'),
       ('[6,1,1,1]')
-    """
-    )
+    """)
 
     # db.commit()
     # db.execute("begin")
@@ -1362,15 +1360,13 @@ def test_vec0_delete_errors():
 
 def test_vec0_updates():
     db = connect(EXT_PATH)
-    db.execute(
-        """
+    db.execute("""
           create virtual table t3 using vec0(
             aaa float[8],
             bbb int8[8],
             ccc bit[8]
           );
-        """
-    )
+        """)
     db.execute(
         """
                INSERT INTO t3 VALUES
@@ -1552,16 +1548,14 @@ def test_vec0_point():
 
 def test_vec0_text_pk():
     db = connect(EXT_PATH)
-    db.execute(
-        """
+    db.execute("""
           create virtual table t using vec0(
             t_id text primary key,
             aaa float[1],
             bbb float8[1],
             chunk_size=8
           );
-        """
-    )
+        """)
     assert execute_all(db, "select * from t") == []
 
     with _raises(
@@ -1670,14 +1664,12 @@ def test_vec0_text_pk():
 
 def test_vec0_best_index():
     db = connect(EXT_PATH)
-    db.execute(
-        """
+    db.execute("""
           create virtual table t using vec0(
             aaa float[1],
             bbb float8[1]
           );
-        """
-    )
+        """)
 
     with _raises("only 1 MATCH operator is allowed in a single vec0 query"):
         db.execute("select * from t where aaa match NULL and bbb match NULL")
@@ -1743,8 +1735,10 @@ def test_vec_each():
         {"rowid": 2, "value": 3.0},
     ]
 
-    with _raises("Input must have type BLOB (compact format) or TEXT (JSON), found NULL"):
-      vec_each_f32(None)
+    with _raises(
+        "Input must have type BLOB (compact format) or TEXT (JSON), found NULL"
+    ):
+        vec_each_f32(None)
 
 
 import io
@@ -2131,16 +2125,14 @@ def test_vec0_create_errors():
 
 def test_vec0_knn():
     db = connect(EXT_PATH)
-    db.execute(
-        """
+    db.execute("""
           create virtual table v using vec0(
             aaa float[8],
             bbb int8[8],
             ccc bit[8],
             chunk_size=8
           );
-        """
-    )
+        """)
 
     with _raises(
         'Query vector on the "aaa" column is invalid: Input must have type BLOB (compact format) or TEXT (JSON), found NULL'
@@ -2406,42 +2398,36 @@ def test_smoke():
 
     db.execute("insert into vec_xyz(rowid, a) select 2, X'0000000000000040'")
     chunk = db.execute("select * from vec_xyz_chunks").fetchone()
-    assert (
-        chunk["rowids"]
-        == b"\x01\x00\x00\x00\x00\x00\x00\x00"
-        + b"\x02\x00\x00\x00\x00\x00\x00\x00"
-        + bytearray(int(1024 * 8) - 8 * 2)
+    assert chunk[
+        "rowids"
+    ] == b"\x01\x00\x00\x00\x00\x00\x00\x00" + b"\x02\x00\x00\x00\x00\x00\x00\x00" + bytearray(
+        int(1024 * 8) - 8 * 2
     )
     assert chunk["chunk_id"] == 1
     assert chunk["validity"] == b"\x03" + bytearray(int(1024 / 8) - 1)
     vchunk = db.execute("select * from vec_xyz_vector_chunks00").fetchone()
     assert vchunk["rowid"] == 1
-    assert (
-        vchunk["vectors"]
-        == b"\x00\x00\x00\x00\x00\x00\x80\x3f"
-        + b"\x00\x00\x00\x00\x00\x00\x00\x40"
-        + bytearray(int(1024 * 4 * 2) - (2 * 4 * 2))
+    assert vchunk[
+        "vectors"
+    ] == b"\x00\x00\x00\x00\x00\x00\x80\x3f" + b"\x00\x00\x00\x00\x00\x00\x00\x40" + bytearray(
+        int(1024 * 4 * 2) - (2 * 4 * 2)
     )
 
     db.execute("insert into vec_xyz(rowid, a) select 3, X'00000000000080bf'")
     chunk = db.execute("select * from vec_xyz_chunks").fetchone()
     assert chunk["chunk_id"] == 1
     assert chunk["validity"] == b"\x07" + bytearray(int(1024 / 8) - 1)
-    assert (
-        chunk["rowids"]
-        == b"\x01\x00\x00\x00\x00\x00\x00\x00"
-        + b"\x02\x00\x00\x00\x00\x00\x00\x00"
-        + b"\x03\x00\x00\x00\x00\x00\x00\x00"
-        + bytearray(int(1024 * 8) - 8 * 3)
+    assert chunk[
+        "rowids"
+    ] == b"\x01\x00\x00\x00\x00\x00\x00\x00" + b"\x02\x00\x00\x00\x00\x00\x00\x00" + b"\x03\x00\x00\x00\x00\x00\x00\x00" + bytearray(
+        int(1024 * 8) - 8 * 3
     )
     vchunk = db.execute("select * from vec_xyz_vector_chunks00").fetchone()
     assert vchunk["rowid"] == 1
-    assert (
-        vchunk["vectors"]
-        == b"\x00\x00\x00\x00\x00\x00\x80\x3f"
-        + b"\x00\x00\x00\x00\x00\x00\x00\x40"
-        + b"\x00\x00\x00\x00\x00\x00\x80\xbf"
-        + bytearray(int(1024 * 4 * 2) - (2 * 4 * 3))
+    assert vchunk[
+        "vectors"
+    ] == b"\x00\x00\x00\x00\x00\x00\x80\x3f" + b"\x00\x00\x00\x00\x00\x00\x00\x40" + b"\x00\x00\x00\x00\x00\x00\x80\xbf" + bytearray(
+        int(1024 * 4 * 2) - (2 * 4 * 3)
     )
 
     # db.execute("select * from vec_xyz")
@@ -2484,63 +2470,66 @@ def test_vec0_stress_small_chunks():
         {"rowid": 994, "a": _f32([99.4] * 8)},
         {"rowid": 993, "a": _f32([99.3] * 8)},
     ]
-    assert execute_all(
-        db,
-        """
+    assert (
+        execute_all(
+            db,
+            """
               select rowid, a, distance
               from vec_small
               where a match ?
                 and k = 9
               order by distance
             """,
-        [_f32([50.0] * 8)],
-    ) == [
-        {
-            "a": _f32([500 * 0.1] * 8),
-            "distance": 0.0,
-            "rowid": 500,
-        },
-        {
-            "a": _f32([501 * 0.1] * 8),
-            "distance": 0.2828384041786194,
-            "rowid": 501,
-        },
-        {
-            "a": _f32([499 * 0.1] * 8),
-            "distance": 0.2828384041786194,
-            "rowid": 499,
-        },
-        {
-            "a": _f32([502 * 0.1] * 8),
-            "distance": 0.5656875967979431,
-            "rowid": 502,
-        },
-        {
-            "a": _f32([498 * 0.1] * 8),
-            "distance": 0.5656875967979431,
-            "rowid": 498,
-        },
-        {
-            "a": _f32([503 * 0.1] * 8),
-            "distance": 0.8485260009765625,
-            "rowid": 503,
-        },
-        {
-            "a": _f32([497 * 0.1] * 8),
-            "distance": 0.8485260009765625,
-            "rowid": 497,
-        },
-        {
-            "a": _f32([496 * 0.1] * 8),
-            "distance": 1.1313751935958862,
-            "rowid": 496,
-        },
-        {
-            "a": _f32([504 * 0.1] * 8),
-            "distance": 1.1313751935958862,
-            "rowid": 504,
-        },
-    ]
+            [_f32([50.0] * 8)],
+        )
+        == [
+            {
+                "a": _f32([500 * 0.1] * 8),
+                "distance": 0.0,
+                "rowid": 500,
+            },
+            {
+                "a": _f32([501 * 0.1] * 8),
+                "distance": 0.2828384041786194,
+                "rowid": 501,
+            },
+            {
+                "a": _f32([499 * 0.1] * 8),
+                "distance": 0.2828384041786194,
+                "rowid": 499,
+            },
+            {
+                "a": _f32([502 * 0.1] * 8),
+                "distance": 0.5656875967979431,
+                "rowid": 502,
+            },
+            {
+                "a": _f32([498 * 0.1] * 8),
+                "distance": 0.5656875967979431,
+                "rowid": 498,
+            },
+            {
+                "a": _f32([503 * 0.1] * 8),
+                "distance": 0.8485260009765625,
+                "rowid": 503,
+            },
+            {
+                "a": _f32([497 * 0.1] * 8),
+                "distance": 0.8485260009765625,
+                "rowid": 497,
+            },
+            {
+                "a": _f32([496 * 0.1] * 8),
+                "distance": 1.1313751935958862,
+                "rowid": 496,
+            },
+            {
+                "a": _f32([504 * 0.1] * 8),
+                "distance": 1.1313751935958862,
+                "rowid": 504,
+            },
+        ]
+    )
 
 
 def test_vec0_distance_metric():

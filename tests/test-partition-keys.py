@@ -3,9 +3,10 @@ from collections import OrderedDict
 
 
 def test_constructor_limit(db, snapshot):
-    assert exec(
-        db,
-        """
+    assert (
+        exec(
+            db,
+            """
         create virtual table v using vec0(
           p1 int partition key,
           p2 int partition key,
@@ -15,7 +16,9 @@ def test_constructor_limit(db, snapshot):
           v float[1]
         )
       """,
-    ) == snapshot(name="max 4 partition keys")
+        )
+        == snapshot(name="max 4 partition keys")
+    )
 
 
 def test_normal(db, snapshot):
@@ -75,9 +78,7 @@ def test_updates(db, snapshot):
 
 
 def test_vacuum(db, snapshot):
-    db.execute(
-        "create virtual table v using vec0(p text partition key, a float[1])"
-    )
+    db.execute("create virtual table v using vec0(p text partition key, a float[1])")
 
     db.execute(
         "insert into v(rowid, p, a) values (?, ?, ?)", [1, "a", b"\x11\x11\x11\x11"]

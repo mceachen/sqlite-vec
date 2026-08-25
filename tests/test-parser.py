@@ -53,7 +53,9 @@ class TestTableOptionParser:
 
     def test_extra_tokens_after_value(self, db, snapshot):
         """Table option with extra tokens after value should fail."""
-        result = exec(db, "create virtual table v using vec0(chunk_size=8 extra, a float[4])")
+        result = exec(
+            db, "create virtual table v using vec0(chunk_size=8 extra, a float[4])"
+        )
         assert result == snapshot(name="extra tokens after value")
 
     def test_valid_table_option(self, db):
@@ -68,7 +70,9 @@ class TestPartitionKeyParser:
 
     def test_missing_type(self, db, snapshot):
         """Partition key without type should fail."""
-        result = exec(db, "create virtual table v using vec0(p partition key, a float[4])")
+        result = exec(
+            db, "create virtual table v using vec0(p partition key, a float[4])"
+        )
         assert result == snapshot(name="partition key missing type")
 
     def test_missing_partition_keyword(self, db, snapshot):
@@ -78,12 +82,16 @@ class TestPartitionKeyParser:
 
     def test_missing_key_keyword(self, db, snapshot):
         """Column with 'partition' but not 'key' should fail."""
-        result = exec(db, "create virtual table v using vec0(p int partition, a float[4])")
+        result = exec(
+            db, "create virtual table v using vec0(p int partition, a float[4])"
+        )
         assert result == snapshot(name="missing key keyword")
 
     def test_invalid_type(self, db, snapshot):
         """Partition key with invalid type should fail."""
-        result = exec(db, "create virtual table v using vec0(p blob partition key, a float[4])")
+        result = exec(
+            db, "create virtual table v using vec0(p blob partition key, a float[4])"
+        )
         assert result == snapshot(name="invalid partition key type")
 
     def test_valid_int_partition_key(self, db):
@@ -93,7 +101,9 @@ class TestPartitionKeyParser:
 
     def test_valid_text_partition_key(self, db):
         """Sanity check: valid text partition key should succeed."""
-        db.execute("create virtual table v using vec0(p text partition key, a float[4])")
+        db.execute(
+            "create virtual table v using vec0(p text partition key, a float[4])"
+        )
         db.execute("drop table v")
 
 
@@ -141,7 +151,9 @@ class TestPrimaryKeyParser:
 
     def test_missing_type(self, db, snapshot):
         """Primary key without type should fail."""
-        result = exec(db, "create virtual table v using vec0(id primary key, a float[4])")
+        result = exec(
+            db, "create virtual table v using vec0(id primary key, a float[4])"
+        )
         assert result == snapshot(name="primary key missing type")
 
     def test_missing_primary_keyword(self, db, snapshot):
@@ -151,12 +163,16 @@ class TestPrimaryKeyParser:
 
     def test_missing_key_keyword(self, db, snapshot):
         """Column with 'primary' but not 'key' should fail."""
-        result = exec(db, "create virtual table v using vec0(id int primary, a float[4])")
+        result = exec(
+            db, "create virtual table v using vec0(id int primary, a float[4])"
+        )
         assert result == snapshot(name="missing key keyword after primary")
 
     def test_invalid_type(self, db, snapshot):
         """Primary key with invalid type should fail."""
-        result = exec(db, "create virtual table v using vec0(id blob primary key, a float[4])")
+        result = exec(
+            db, "create virtual table v using vec0(id blob primary key, a float[4])"
+        )
         assert result == snapshot(name="invalid primary key type")
 
     def test_valid_int_primary_key(self, db):
@@ -195,17 +211,23 @@ class TestVectorColumnParser:
 
     def test_distance_metric_missing_equals(self, db, snapshot):
         """distance_metric without '=' should fail."""
-        result = exec(db, "create virtual table v using vec0(a float[4] distance_metric l2)")
+        result = exec(
+            db, "create virtual table v using vec0(a float[4] distance_metric l2)"
+        )
         assert result == snapshot(name="distance_metric missing equals")
 
     def test_distance_metric_missing_value(self, db, snapshot):
         """distance_metric= without value should fail."""
-        result = exec(db, "create virtual table v using vec0(a float[4] distance_metric=)")
+        result = exec(
+            db, "create virtual table v using vec0(a float[4] distance_metric=)"
+        )
         assert result == snapshot(name="distance_metric missing value")
 
     def test_distance_metric_invalid_value(self, db, snapshot):
         """distance_metric with invalid value should fail."""
-        result = exec(db, "create virtual table v using vec0(a float[4] distance_metric=invalid)")
+        result = exec(
+            db, "create virtual table v using vec0(a float[4] distance_metric=invalid)"
+        )
         assert result == snapshot(name="distance_metric invalid value")
 
     def test_valid_float_vector(self, db):
@@ -230,7 +252,9 @@ class TestVectorColumnParser:
 
     def test_valid_distance_metric_cosine(self, db):
         """Sanity check: valid cosine distance metric should succeed."""
-        db.execute("create virtual table v using vec0(a float[4] distance_metric=cosine)")
+        db.execute(
+            "create virtual table v using vec0(a float[4] distance_metric=cosine)"
+        )
         db.execute("drop table v")
 
     def test_valid_distance_metric_l1(self, db):

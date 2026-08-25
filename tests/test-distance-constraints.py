@@ -130,14 +130,12 @@ def test_distance_range_query(db):
     )
 
     # Get vectors with distance between 3.0 and 6.0 (inclusive on both ends)
-    result = db.execute(
-        """SELECT rowid, distance FROM v
+    result = db.execute("""SELECT rowid, distance FROM v
            WHERE embedding MATCH '[0.0]'
            AND k = 20
            AND distance >= 3.0
            AND distance <= 6.0
-           ORDER BY distance"""
-    ).fetchall()
+           ORDER BY distance""").fetchall()
 
     # Should get rowids 3, 4, 5, 6 (distances 3.0, 4.0, 5.0, 6.0)
     assert len(result) == 4
@@ -146,7 +144,9 @@ def test_distance_range_query(db):
 
 def test_distance_with_partition_keys(db):
     """Test distance constraints work with partition keys"""
-    db.execute("CREATE VIRTUAL TABLE v USING vec0(category TEXT partition key, embedding float[2])")
+    db.execute(
+        "CREATE VIRTUAL TABLE v USING vec0(category TEXT partition key, embedding float[2])"
+    )
     db.executemany(
         "INSERT INTO v(rowid, category, embedding) VALUES (?, ?, ?)",
         [
@@ -159,14 +159,12 @@ def test_distance_with_partition_keys(db):
     )
 
     # Query only category A with distance filter
-    result = db.execute(
-        """SELECT rowid, distance FROM v
+    result = db.execute("""SELECT rowid, distance FROM v
            WHERE embedding MATCH '[0.0, 0.0]'
            AND category = 'A'
            AND k = 10
            AND distance > 1.0
-           ORDER BY distance"""
-    ).fetchall()
+           ORDER BY distance""").fetchall()
 
     # Should only get category A items with distance > 1.0
     assert len(result) == 2
@@ -188,14 +186,12 @@ def test_distance_with_metadata(db):
     )
 
     # Query with both metadata filter and distance constraint
-    result = db.execute(
-        """SELECT rowid, distance FROM v
+    result = db.execute("""SELECT rowid, distance FROM v
            WHERE embedding MATCH '[0.0, 0.0]'
            AND label = 'important'
            AND k = 10
            AND distance >= 2.0
-           ORDER BY distance"""
-    ).fetchall()
+           ORDER BY distance""").fetchall()
 
     # Should get rowid 2 and 4 (both important, distance >= 2.0)
     assert len(result) == 2
@@ -257,10 +253,18 @@ def test_distance_binary_vectors(db):
     # Use 32 bits = 4 bytes to satisfy alignment requirements
     db.execute("CREATE VIRTUAL TABLE v USING vec0(embedding bit[32])")
     # Use vec_bit() constructor to properly type the vectors
-    db.execute("INSERT INTO v(rowid, embedding) VALUES (1, vec_bit(?))", [b"\x00\x00\x00\x00"])
-    db.execute("INSERT INTO v(rowid, embedding) VALUES (2, vec_bit(?))", [b"\x01\x00\x00\x00"])
-    db.execute("INSERT INTO v(rowid, embedding) VALUES (3, vec_bit(?))", [b"\x03\x00\x00\x00"])
-    db.execute("INSERT INTO v(rowid, embedding) VALUES (4, vec_bit(?))", [b"\x0F\x00\x00\x00"])
+    db.execute(
+        "INSERT INTO v(rowid, embedding) VALUES (1, vec_bit(?))", [b"\x00\x00\x00\x00"]
+    )
+    db.execute(
+        "INSERT INTO v(rowid, embedding) VALUES (2, vec_bit(?))", [b"\x01\x00\x00\x00"]
+    )
+    db.execute(
+        "INSERT INTO v(rowid, embedding) VALUES (3, vec_bit(?))", [b"\x03\x00\x00\x00"]
+    )
+    db.execute(
+        "INSERT INTO v(rowid, embedding) VALUES (4, vec_bit(?))", [b"\x0f\x00\x00\x00"]
+    )
 
     # Use vec_bit() directly in the MATCH clause to preserve type
     result = db.execute(
@@ -278,10 +282,18 @@ def test_distance_int8_vectors(db):
     # Use 4 elements to match 4-byte alignment
     db.execute("CREATE VIRTUAL TABLE v USING vec0(embedding int8[4])")
     # Use vec_int8() constructor to properly type the vectors
-    db.execute("INSERT INTO v(rowid, embedding) VALUES (1, vec_int8(?))", [_int8([1, 0, 0, 0])])
-    db.execute("INSERT INTO v(rowid, embedding) VALUES (2, vec_int8(?))", [_int8([2, 0, 0, 0])])
-    db.execute("INSERT INTO v(rowid, embedding) VALUES (3, vec_int8(?))", [_int8([3, 0, 0, 0])])
-    db.execute("INSERT INTO v(rowid, embedding) VALUES (4, vec_int8(?))", [_int8([4, 0, 0, 0])])
+    db.execute(
+        "INSERT INTO v(rowid, embedding) VALUES (1, vec_int8(?))", [_int8([1, 0, 0, 0])]
+    )
+    db.execute(
+        "INSERT INTO v(rowid, embedding) VALUES (2, vec_int8(?))", [_int8([2, 0, 0, 0])]
+    )
+    db.execute(
+        "INSERT INTO v(rowid, embedding) VALUES (3, vec_int8(?))", [_int8([3, 0, 0, 0])]
+    )
+    db.execute(
+        "INSERT INTO v(rowid, embedding) VALUES (4, vec_int8(?))", [_int8([4, 0, 0, 0])]
+    )
 
     # Use vec_int8() directly in the MATCH clause to preserve type
     result = db.execute(
@@ -306,8 +318,8 @@ def test_distance_equal_distances_caveat(db):
         [
             (1, "[1.0, 0.0]"),  # distance 1.0
             (2, "[0.0, 1.0]"),  # distance 1.0
-            (3, "[-1.0, 0.0]"), # distance 1.0
-            (4, "[0.0, -1.0]"), # distance 1.0
+            (3, "[-1.0, 0.0]"),  # distance 1.0
+            (4, "[0.0, -1.0]"),  # distance 1.0
             (5, "[2.0, 0.0]"),  # distance 2.0
         ],
     )
@@ -335,13 +347,11 @@ def test_distance_with_auxiliary_columns(db):
         ],
     )
 
-    result = db.execute(
-        """SELECT rowid, distance, metadata FROM v
+    result = db.execute("""SELECT rowid, distance, metadata FROM v
            WHERE embedding MATCH '[0.0, 0.0]'
            AND k = 10
            AND distance >= 2.0
-           ORDER BY distance"""
-    ).fetchall()
+           ORDER BY distance""").fetchall()
 
     assert len(result) == 2
     assert result[0]["rowid"] == 2

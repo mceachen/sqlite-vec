@@ -3,15 +3,18 @@ from collections import OrderedDict
 
 
 def test_constructor_limit(db, snapshot):
-    assert exec(
-        db,
-        f"""
+    assert (
+        exec(
+            db,
+            f"""
         create virtual table v using vec0(
           {",".join([f"+aux{x} integer" for x in range(17)])}
           v float[1]
         )
       """,
-    ) == snapshot(name="max 16 auxiliary columns")
+        )
+        == snapshot(name="max 16 auxiliary columns")
+    )
 
 
 def test_normal(db, snapshot):
@@ -36,8 +39,7 @@ def test_normal(db, snapshot):
 
 
 def test_types(db, snapshot):
-    db.execute(
-        """
+    db.execute("""
           create virtual table v using vec0(
             vector float[1],
             +aux_int integer,
@@ -45,8 +47,7 @@ def test_types(db, snapshot):
             +aux_text text,
             +aux_blob blob
           )
-        """
-    )
+        """)
     assert exec(db, "select * from v") == snapshot()
     INSERT = "insert into v(vector, aux_int, aux_float, aux_text, aux_blob) values (?, ?, ?, ?, ?)"
 
@@ -120,9 +121,7 @@ def test_renames(db, snapshot):
     assert vec0_shadow_table_contents(db, "v") == snapshot()
 
     res = exec(db, "select rowid, * from v")
-    db.execute(
-        "alter table v rename to v1"
-    )
+    db.execute("alter table v rename to v1")
     assert exec(db, "select rowid, * from v1")["rows"] == res["rows"]
 
 
@@ -145,9 +144,7 @@ def test_knn(db, snapshot):
 
 
 def test_vacuum(db, snapshot):
-    db.execute(
-        "create virtual table v using vec0(vector float[1], +name text)"
-    )
+    db.execute("create virtual table v using vec0(vector float[1], +name text)")
     db.executemany(
         "insert into v(vector, name) values (?, ?)",
         [("[1]", "alex"), ("[2]", "brian"), ("[3]", "craig")],

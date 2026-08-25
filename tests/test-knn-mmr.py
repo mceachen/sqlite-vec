@@ -24,19 +24,13 @@ def test_mmr_cosine_diversity(db, snapshot):
     assert exec(db, BASE_KNN, ["[1,0,0]", 3]) == snapshot()
 
     # lambda=1.0 — pure relevance, same order as baseline
-    assert (
-        exec(db, BASE_KNN + " and mmr_lambda = ?", ["[1,0,0]", 3, 1.0]) == snapshot()
-    )
+    assert exec(db, BASE_KNN + " and mmr_lambda = ?", ["[1,0,0]", 3, 1.0]) == snapshot()
 
     # lambda=0.5 — balanced: should include diverse results
-    assert (
-        exec(db, BASE_KNN + " and mmr_lambda = ?", ["[1,0,0]", 3, 0.5]) == snapshot()
-    )
+    assert exec(db, BASE_KNN + " and mmr_lambda = ?", ["[1,0,0]", 3, 0.5]) == snapshot()
 
     # lambda=0.0 — pure diversity
-    assert (
-        exec(db, BASE_KNN + " and mmr_lambda = ?", ["[1,0,0]", 3, 0.0]) == snapshot()
-    )
+    assert exec(db, BASE_KNN + " and mmr_lambda = ?", ["[1,0,0]", 3, 0.0]) == snapshot()
 
 
 def test_mmr_l2_metric(db, snapshot):
@@ -54,9 +48,7 @@ def test_mmr_l2_metric(db, snapshot):
     )
 
     BASE_KNN = "select rowid, distance from v where embedding match ? and k = ?"
-    assert (
-        exec(db, BASE_KNN + " and mmr_lambda = ?", ["[1,0,0]", 3, 0.5]) == snapshot()
-    )
+    assert exec(db, BASE_KNN + " and mmr_lambda = ?", ["[1,0,0]", 3, 0.5]) == snapshot()
 
 
 def test_mmr_int8_vectors(db, snapshot):
@@ -114,9 +106,7 @@ def test_mmr_clustering(db, snapshot):
     assert exec(db, BASE_KNN, ["[1,0,0]", 5]) == snapshot()
 
     # With MMR: should include results from other clusters
-    assert (
-        exec(db, BASE_KNN + " and mmr_lambda = ?", ["[1,0,0]", 5, 0.5]) == snapshot()
-    )
+    assert exec(db, BASE_KNN + " and mmr_lambda = ?", ["[1,0,0]", 5, 0.5]) == snapshot()
 
 
 def test_mmr_with_distance_constraint(db, snapshot):
@@ -186,14 +176,10 @@ def test_mmr_edge_cases(db, snapshot):
     BASE_KNN = "select rowid, distance from v where embedding match ? and k = ?"
 
     # k=1 with MMR — should return closest
-    assert (
-        exec(db, BASE_KNN + " and mmr_lambda = ?", ["[1,0,0]", 1, 0.5]) == snapshot()
-    )
+    assert exec(db, BASE_KNN + " and mmr_lambda = ?", ["[1,0,0]", 1, 0.5]) == snapshot()
 
     # k=0 with MMR — should return empty
-    assert (
-        exec(db, BASE_KNN + " and mmr_lambda = ?", ["[1,0,0]", 0, 0.5]) == snapshot()
-    )
+    assert exec(db, BASE_KNN + " and mmr_lambda = ?", ["[1,0,0]", 0, 0.5]) == snapshot()
 
 
 def test_mmr_error_invalid_lambda(db, snapshot):
@@ -206,9 +192,7 @@ def test_mmr_error_invalid_lambda(db, snapshot):
     BASE_KNN = "select rowid, distance from v where embedding match ? and k = ?"
 
     # lambda > 1.0
-    assert (
-        exec(db, BASE_KNN + " and mmr_lambda = ?", ["[1,0,0]", 1, 1.5]) == snapshot()
-    )
+    assert exec(db, BASE_KNN + " and mmr_lambda = ?", ["[1,0,0]", 1, 1.5]) == snapshot()
 
     # lambda < 0.0
     assert (
