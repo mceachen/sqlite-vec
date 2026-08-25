@@ -7,3 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
   "pytest", "numpy", "syrupy"
 ]
+
+[dependency-groups]
+# `make format` / `make lint` run black over the Python tests.
+dev = ["black==26.5.1"]

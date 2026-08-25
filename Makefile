@@ -262,14 +262,17 @@ lint-clang-tidy:
 .PHONY: format lint
 
 FORMAT_FILES := sqlite-vec.h sqlite-vec.c
+# black lives in the test venv's dev group: `uv sync --directory tests`
+PY_FORMAT_FILES := $(wildcard tests/*.py) setup.py
 
 format: $(FORMAT_FILES)
 	clang-format -i $(FORMAT_FILES)
-	black tests/test-loadable.py
+	$(PYTHON) -m black $(PY_FORMAT_FILES)
 
 lint: SHELL := /bin/bash
 lint:
 	diff -u <(cat $(FORMAT_FILES)) <(clang-format $(FORMAT_FILES))
+	$(PYTHON) -m black --check --diff $(PY_FORMAT_FILES)
 
 # ── preflight ─────────────────────────────────────────────────────────────────────
 # Every PhotoStructure repo exposes `make preflight`: run everything that should
