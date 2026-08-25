@@ -1,0 +1,8 @@
+# Mechanical formatting commits, skipped by git blame on GitHub and by
+# local blame when configured with:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style(sqlite-vec.c): apply clang-format
+5db3df48473addd42ac60e6f7e89cb662584272f
+# style(tests): apply black to python tests and setup.py
+13311ae9c4035dfb7aa34021a36997e307e567e5
