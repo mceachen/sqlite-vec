@@ -286,7 +286,12 @@ jobs:
       # OIDC trusted publishing needs npm >= 11.5.1. Pinned, not @latest: npm
       # drops EOL node lines in majors, so @latest broke the v1.2.1 release
       # when npm 12 required node >= 22.22.2 on a node 20 runner.
-      - run: npm install -g npm@12.0.2
+      #
+      # Held on npm 11, which is still maintained and is the major that
+      # published v1.2.0 (11.18.0). npm 12 landed two days later and has not
+      # been exercised against this OIDC + provenance publish; bump it
+      # deliberately, with a prerelease to test it, rather than drifting.
+      - run: npm install -g npm@11.19.0
 
       - name: Publish to npm with OIDC
         run: |
