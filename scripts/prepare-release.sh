@@ -68,8 +68,23 @@ fi
 BRANCH="release/v${VERSION}"
 git checkout -b "$BRANCH"
 
-# Regenerate sqlite-vec.h from template (uses VERSION file)
+# Regenerate sqlite-vec.h from template (uses VERSION file).
+#
+# The rm is required, not tidiness: a fresh CI checkout stamps every file with
+# the same mtime, and make treats a target that is merely not-older than its
+# prerequisites as up to date. So plain `make sqlite-vec.h` prints "up to date"
+# and silently keeps the committed header, which is how the version stayed at
+# v0.4.0 in every binary from v0.4.1 through v1.2.0.
+rm -f sqlite-vec.h
 make sqlite-vec.h
+
+# Fail loudly if the header did not pick up VERSION, rather than shipping
+# binaries whose vec_version() disagrees with the package version.
+if ! grep -q "define SQLITE_VEC_VERSION \"v${VERSION}\"" sqlite-vec.h; then
+  echo "ERROR: sqlite-vec.h was not regenerated for v${VERSION}:" >&2
+  grep "define SQLITE_VEC_VERSION " sqlite-vec.h >&2
+  exit 1
+fi
 
 # Sync VERSION to package.json and package-lock.json
 npm version "$VERSION" --no-git-tag-version --allow-same-version
