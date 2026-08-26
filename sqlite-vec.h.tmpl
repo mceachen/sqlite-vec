@@ -8,20 +8,19 @@
 #endif
 
 #ifdef SQLITE_VEC_STATIC
-  #define SQLITE_VEC_API __attribute__((visibility("default")))
+#define SQLITE_VEC_API __attribute__((visibility("default")))
 #else
-  #ifdef _WIN32
-    #define SQLITE_VEC_API __declspec(dllexport)
-  #else
-    #define SQLITE_VEC_API __attribute__((visibility("default")))
-  #endif
+#ifdef _WIN32
+#define SQLITE_VEC_API __declspec(dllexport)
+#else
+#define SQLITE_VEC_API __attribute__((visibility("default")))
+#endif
 #endif
 
 #define SQLITE_VEC_VERSION "v${VERSION}"
 // TODO rm
 #define SQLITE_VEC_DATE "${DATE}"
 #define SQLITE_VEC_SOURCE "${SOURCE}"
-
 
 #define SQLITE_VEC_VERSION_MAJOR ${VERSION_MAJOR}
 #define SQLITE_VEC_VERSION_MINOR ${VERSION_MINOR}
@@ -32,10 +31,10 @@ extern "C" {
 #endif
 
 SQLITE_VEC_API int sqlite3_vec_init(sqlite3 *db, char **pzErrMsg,
-                  const sqlite3_api_routines *pApi);
+                                    const sqlite3_api_routines *pApi);
 
 #ifdef __cplusplus
-}  /* end of the 'extern "C"' block */
+} /* end of the 'extern "C"' block */
 #endif
 
 #endif /* ifndef SQLITE_VEC_H */
