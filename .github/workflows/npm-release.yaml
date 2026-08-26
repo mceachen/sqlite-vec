@@ -70,7 +70,7 @@ jobs:
 
       - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
-          node-version: "20"
+          node-version: "24"
 
       - uses: photostructure/git-ssh-signing-action@fdd4b062a9ba41473f013258cc9c7eea1640f826 # v1.2.0
         with:
@@ -118,7 +118,7 @@ jobs:
         with:
           ref: ${{ needs.prepare-release.outputs.release_branch }}
       - run: |
-          docker run --rm -v $(pwd):/tmp/project --entrypoint /bin/sh --platform linux/amd64 node:20-alpine -c "\
+          docker run --rm -v $(pwd):/tmp/project --entrypoint /bin/sh --platform linux/amd64 alpine:3.23 -c "\
           apk add build-base bash curl unzip --update-cache && \
           cd /tmp/project && \
           ./scripts/vendor.sh && \
@@ -136,7 +136,7 @@ jobs:
         with:
           ref: ${{ needs.prepare-release.outputs.release_branch }}
       - run: |
-          docker run --rm -v $(pwd):/tmp/project --entrypoint /bin/sh --platform linux/arm64 node:20-alpine -c "\
+          docker run --rm -v $(pwd):/tmp/project --entrypoint /bin/sh --platform linux/arm64 alpine:3.23 -c "\
           apk add build-base bash curl unzip --update-cache && \
           cd /tmp/project && \
           ./scripts/vendor.sh && \
@@ -274,7 +274,7 @@ jobs:
 
       - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
-          node-version: "20"
+          node-version: "24"
           registry-url: "https://registry.npmjs.org"
 
       - uses: photostructure/git-ssh-signing-action@fdd4b062a9ba41473f013258cc9c7eea1640f826 # v1.2.0
@@ -283,7 +283,10 @@ jobs:
           git-user-name: ${{ secrets.GIT_USER_NAME }}
           git-user-email: ${{ secrets.GIT_USER_EMAIL }}
 
-      - run: npm install -g npm@latest
+      # OIDC trusted publishing needs npm >= 11.5.1. Pinned, not @latest: npm
+      # drops EOL node lines in majors, so @latest broke the v1.2.1 release
+      # when npm 12 required node >= 22.22.2 on a node 20 runner.
+      - run: npm install -g npm@12.0.2
 
       - name: Publish to npm with OIDC
         run: |
