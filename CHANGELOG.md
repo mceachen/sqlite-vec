@@ -1,6 +1,10 @@
 # Changelog
 
-## [1.2.1] - 2026-08-25
+## [2.0.0] - 2026-08-25
+
+### Changed
+
+- **BREAKING:** Raised the minimum supported Node.js to 22.0.0 (`engines.node` was `>=14.0.0`). Node 20 and earlier reached end-of-life on 2026-04-30 and no longer receive security updates. The native extension itself is unchanged — this only tightens what npm will install onto. Node 22 is supported until 2027-04-30 and Node 24 until 2028-04-30.
 
 ### Fixed
 
