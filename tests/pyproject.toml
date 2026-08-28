@@ -11,3 +11,10 @@ dependencies = [
 [dependency-groups]
 # `make format` / `make lint` run black over the Python tests.
 dev = ["black==26.5.1"]
+
+[tool.uv]
+# Match the npm `min-release-age=14` policy in ../.npmrc: never resolve a
+# release published in the last two weeks. uv records the resolved cutoff and
+# its `P14D` span in uv.lock, so an existing lock stays valid until it is
+# regenerated.
+exclude-newer = "14 days"
