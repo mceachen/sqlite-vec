@@ -1,0 +1,403 @@
+name: "Stage npm Package"
+run-name: "Stage ${{ github.ref_name }} on npm"
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stage-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate signed release tag
+    runs-on: ubuntu-24.04
+    outputs:
+      package_name: ${{ steps.validate.outputs.package_name }}
+      version: ${{ steps.validate.outputs.version }}
+      dist_tag: ${{ steps.validate.outputs.dist_tag }}
+    steps:
+      - name: Checkout the release tag
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify tag, package identity, and signatures
+        id: validate
+        env:
+          EXPECTED_PACKAGE: "@photostructure/sqlite-vec"
+          EXPECTED_REPOSITORY: "git+https://github.com/photostructure/sqlite-vec.git"
+          GH_TOKEN: ${{ github.token }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [[ "$GITHUB_REF" != refs/tags/v* ]]; then
+            echo "::error::This workflow must run at a v* tag, not $GITHUB_REF"
+            exit 1
+          fi
+
+          PACKAGE_NAME="$(node -p "require('./package.json').name")"
+          VERSION="$(node -p "require('./package.json').version")"
+          if [[ "$PACKAGE_NAME" != "$EXPECTED_PACKAGE" ]]; then
+            echo "::error::Expected $EXPECTED_PACKAGE, found $PACKAGE_NAME"
+            exit 1
+          fi
+          if [[ "$REF_NAME" != "v$VERSION" ]]; then
+            echo "::error::Tag $REF_NAME does not match package version $VERSION"
+            exit 1
+          fi
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Package version is not supported semver: $VERSION"
+            exit 1
+          fi
+
+          EXPECTED_REPOSITORY="$EXPECTED_REPOSITORY" node - <<'NODE'
+          const pkg = require("./package.json");
+          const lock = require("./package-lock.json");
+          if (pkg.repository?.url !== process.env.EXPECTED_REPOSITORY) {
+            throw new Error(`Unexpected package repository: ${pkg.repository?.url}`);
+          }
+          if (
+            lock.name !== pkg.name ||
+            lock.version !== pkg.version ||
+            lock.packages[""].name !== pkg.name ||
+            lock.packages[""].version !== pkg.version
+          ) {
+            throw new Error("package.json and package-lock.json identity do not match");
+          }
+          NODE
+
+          if ! grep -Fq "#define SQLITE_VEC_VERSION \"v$VERSION\"" sqlite-vec.h; then
+            echo "::error::sqlite-vec.h does not contain version v$VERSION"
+            exit 1
+          fi
+
+          DIST_TAG=latest
+          if [[ "$VERSION" == *-* ]]; then
+            PRERELEASE="${VERSION#*-}"
+            DIST_TAG="${PRERELEASE%%.*}"
+            case "$DIST_TAG" in
+              alpha|beta|rc) ;;
+              *)
+                echo "::error::Prerelease must start with alpha, beta, or rc: $VERSION"
+                exit 1
+                ;;
+            esac
+          fi
+
+          TAG_OBJECT_TYPE="$(
+            gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$REF_NAME" --jq '.object.type'
+          )"
+          TAG_OBJECT_SHA="$(
+            gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$REF_NAME" --jq '.object.sha'
+          )"
+          if [[ "$TAG_OBJECT_TYPE" != tag ]]; then
+            echo "::error::$REF_NAME must be an annotated tag"
+            exit 1
+          fi
+
+          TAG_TARGET_TYPE="$(
+            gh api "repos/$GITHUB_REPOSITORY/git/tags/$TAG_OBJECT_SHA" --jq '.object.type'
+          )"
+          TAG_TARGET_SHA="$(
+            gh api "repos/$GITHUB_REPOSITORY/git/tags/$TAG_OBJECT_SHA" --jq '.object.sha'
+          )"
+          TAG_VERIFIED="$(
+            gh api "repos/$GITHUB_REPOSITORY/git/tags/$TAG_OBJECT_SHA" --jq '.verification.verified'
+          )"
+          COMMIT_VERIFIED="$(
+            gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA" --jq '.commit.verification.verified'
+          )"
+          if [[ "$TAG_TARGET_TYPE" != commit || "$TAG_TARGET_SHA" != "$GITHUB_SHA" ]]; then
+            echo "::error::$REF_NAME does not point directly to the workflow commit"
+            exit 1
+          fi
+          if [[ "$TAG_VERIFIED" != true || "$COMMIT_VERIFIED" != true ]]; then
+            echo "::error::The release commit and annotated tag must have verified signatures"
+            exit 1
+          fi
+
+          {
+            echo "package_name=$PACKAGE_NAME"
+            echo "version=$VERSION"
+            echo "dist_tag=$DIST_TAG"
+          } >> "$GITHUB_OUTPUT"
+
+  build-native:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x64
+            runner: ubuntu-24.04
+            binary: dist/vec0.so
+          - target: linux-arm64
+            runner: ubuntu-24.04-arm
+            binary: dist/vec0.so
+          - target: linux-x64-musl
+            runner: ubuntu-24.04
+            binary: dist/vec0.so
+          - target: linux-arm64-musl
+            runner: ubuntu-24.04-arm
+            binary: dist/vec0.so
+          - target: darwin-x64
+            runner: macos-15-intel
+            binary: dist/vec0.dylib
+          - target: darwin-arm64
+            runner: macos-14
+            binary: dist/vec0.dylib
+          - target: win32-x64
+            runner: windows-latest
+            binary: dist/vec0.dll
+          - target: win32-arm64
+            runner: windows-11-arm
+            binary: dist/vec0.dll
+    steps:
+      - name: Checkout the release tag
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up MSVC x64
+        if: matrix.target == 'win32-x64'
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+
+      - name: Set up MSVC arm64
+        if: matrix.target == 'win32-arm64'
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          arch: arm64
+
+      - name: Build native extension
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          case "$TARGET" in
+            linux-x64|linux-arm64|darwin-x64|darwin-arm64)
+              ./scripts/vendor.sh
+              make loadable
+              ;;
+            linux-x64-musl)
+              docker run --rm \
+                -v "$GITHUB_WORKSPACE:/tmp/project" \
+                --entrypoint /bin/sh \
+                --platform linux/amd64 \
+                alpine:3.23 \
+                -c 'apk add build-base bash curl unzip --update-cache &&
+                    cd /tmp/project &&
+                    ./scripts/vendor.sh &&
+                    make loadable'
+              ;;
+            linux-arm64-musl)
+              docker run --rm \
+                -v "$GITHUB_WORKSPACE:/tmp/project" \
+                --entrypoint /bin/sh \
+                --platform linux/arm64 \
+                alpine:3.23 \
+                -c 'apk add build-base bash curl unzip --update-cache &&
+                    cd /tmp/project &&
+                    ./scripts/vendor.sh &&
+                    make loadable'
+              ;;
+            win32-x64)
+              ./scripts/vendor.sh
+              make loadable-msvc-x64
+              ;;
+            win32-arm64)
+              ./scripts/vendor.sh
+              make loadable-msvc-arm64
+              ;;
+            *)
+              echo "::error::Unsupported native target: $TARGET"
+              exit 1
+              ;;
+          esac
+
+      - name: Upload native extension
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ${{ matrix.target }}
+          path: ${{ matrix.binary }}
+          if-no-files-found: error
+          retention-days: 1
+
+  pack:
+    name: Pack exact tagged package
+    runs-on: ubuntu-24.04
+    needs: [validate, build-native]
+    steps:
+      - name: Checkout the release tag
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download native extensions
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: "*-*"
+          path: dist
+
+      - name: Install the release Node.js toolchain
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          # Node.js 24.19.0 bundles npm 11.17.0; staged publishing needs 11.15.0
+          # or later. The stage job reverifies this at run time.
+          node-version: "24.19.0"
+          package-manager-cache: false
+
+      - name: Pack and verify the tagged package
+        run: ./scripts/package-npm.sh package-artifact
+
+      - name: Upload exact npm package
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: npm-package-${{ github.ref_name }}
+          path: |
+            package-artifact/*.tgz
+            package-artifact/CONTENTS.txt
+            package-artifact/PACK.json
+          if-no-files-found: error
+          retention-days: 1
+
+  stage:
+    name: Stage package on npm
+    runs-on: ubuntu-24.04
+    needs: [validate, pack]
+    permissions:
+      contents: read
+      id-token: write # Exchange GitHub OIDC identity for npm staging access.
+    steps:
+      - name: Download exact npm package
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: npm-package-${{ github.ref_name }}
+          path: package-artifact
+
+      - name: Install the release Node.js toolchain
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          # Node.js 24.19.0 bundles npm 11.17.0; staged publishing needs 11.15.0
+          # or later. The stage job reverifies this at run time.
+          node-version: "24.19.0"
+          package-manager-cache: false
+
+      - name: Revalidate tag and tarball identity
+        env:
+          EXPECTED_NAME: ${{ needs.validate.outputs.package_name }}
+          EXPECTED_VERSION: ${{ needs.validate.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          TAG_OBJECT_TYPE="$(
+            gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$REF_NAME" --jq '.object.type'
+          )"
+          TAG_OBJECT_SHA="$(
+            gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$REF_NAME" --jq '.object.sha'
+          )"
+          if [[ "$TAG_OBJECT_TYPE" != tag ]]; then
+            echo "::error::$REF_NAME is no longer an annotated tag"
+            exit 1
+          fi
+          TAG_TARGET_SHA="$(
+            gh api "repos/$GITHUB_REPOSITORY/git/tags/$TAG_OBJECT_SHA" --jq '.object.sha'
+          )"
+          TAG_VERIFIED="$(
+            gh api "repos/$GITHUB_REPOSITORY/git/tags/$TAG_OBJECT_SHA" --jq '.verification.verified'
+          )"
+          if [[ "$TAG_TARGET_SHA" != "$GITHUB_SHA" || "$TAG_VERIFIED" != true ]]; then
+            echo "::error::$REF_NAME moved or lost its verified signature"
+            exit 1
+          fi
+
+          mapfile -t TARBALLS < <(
+            find package-artifact -maxdepth 1 -type f -name '*.tgz' -print
+          )
+          if [[ "${#TARBALLS[@]}" -ne 1 ]]; then
+            echo "::error::Expected one tarball, found ${#TARBALLS[@]}"
+            exit 1
+          fi
+          echo "TARBALL=${TARBALLS[0]}" >> "$GITHUB_ENV"
+
+          TARBALL_MANIFEST="$(tar -xOf "${TARBALLS[0]}" package/package.json)"
+          TARBALL_MANIFEST="$TARBALL_MANIFEST" node - <<'NODE'
+          const manifest = JSON.parse(process.env.TARBALL_MANIFEST);
+          if (
+            manifest.name !== process.env.EXPECTED_NAME ||
+            manifest.version !== process.env.EXPECTED_VERSION
+          ) {
+            throw new Error(
+              `Tarball contains ${manifest.name}@${manifest.version}; expected ` +
+                `${process.env.EXPECTED_NAME}@${process.env.EXPECTED_VERSION}`
+            );
+          }
+          NODE
+
+      - name: Stage the package for maintainer approval
+        env:
+          DIST_TAG: ${{ needs.validate.outputs.dist_tag }}
+        run: |
+          node - <<'NODE'
+          const [major, minor] = process.versions.npm
+            ? process.versions.npm.split(".").map(Number)
+            : require("node:child_process")
+                .execFileSync("npm", ["--version"], { encoding: "utf8" })
+                .trim()
+                .split(".")
+                .map(Number);
+          if (major < 11 || (major === 11 && minor < 15)) {
+            throw new Error("npm 11.15 or newer is required for staged publishing");
+          }
+          NODE
+          npm stage publish "./$TARBALL" --ignore-scripts --tag "$DIST_TAG"
+
+  github-release:
+    name: Create GitHub release
+    runs-on: ubuntu-24.04
+    needs: [validate, stage]
+    permissions:
+      contents: write # Create the GitHub release for the staged package.
+    steps:
+      - name: Revalidate tag and create release
+        env:
+          DIST_TAG: ${{ needs.validate.outputs.dist_tag }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          TAG_OBJECT_TYPE="$(
+            gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq '.object.type'
+          )"
+          TAG_OBJECT_SHA="$(
+            gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq '.object.sha'
+          )"
+          if [[ "$TAG_OBJECT_TYPE" != tag ]]; then
+            echo "::error::$TAG is no longer an annotated tag"
+            exit 1
+          fi
+          TAG_TARGET_SHA="$(
+            gh api "repos/$GITHUB_REPOSITORY/git/tags/$TAG_OBJECT_SHA" --jq '.object.sha'
+          )"
+          TAG_VERIFIED="$(
+            gh api "repos/$GITHUB_REPOSITORY/git/tags/$TAG_OBJECT_SHA" --jq '.verification.verified'
+          )"
+          if [[ "$TAG_TARGET_SHA" != "$GITHUB_SHA" || "$TAG_VERIFIED" != true ]]; then
+            echo "::error::$TAG moved or lost its verified signature"
+            exit 1
+          fi
+
+          RELEASE_ARGS=(
+            "$TAG"
+            --repo "$GITHUB_REPOSITORY"
+            --verify-tag
+            --generate-notes
+          )
+          if [[ "$DIST_TAG" != latest ]]; then
+            RELEASE_ARGS+=(--prerelease)
+          fi
+          gh release create "${RELEASE_ARGS[@]}"

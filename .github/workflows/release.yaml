@@ -1,53 +1,9 @@
-name: "npm Release"
+name: "Build & Prepare Release"
+run-name: "Prepare ${{ github.ref_name }} for npm release"
 
-# Fork-specific workflow for publishing to npm with OIDC
-
-#
-# APPROACH: We bundle all platform binaries in a single npm package (like
-# prebuildify) rather than using platform-specific optionalDependencies (like
-# esbuild/swc). Rationale:
-#   - Simpler: one package to publish, not 5+ platform packages
-#   - More secure: avoids post-install scripts and dependency on npm registry
-#   - Reliable: works offline, with disabled scripts, and custom registries
-#   - Small overhead: sqlite-vec binaries are ~200KB each, so bundling all is
-#     fine
-
-#
-# FIRST-TIME SETUP (required before this workflow will work):
-#
-# 1. Build and publish the package locally to create it on npm:
-#    ```sh
-#    ./scripts/vendor.sh
-#    make loadable
-#    mkdir -p dist/$(node -p "process.platform + '-' + process.arch")
-#    cp dist/vec0.* dist/$(node -p "process.platform + '-' + process.arch")/
-#    npm login
-#    npm publish --access public --tag alpha  # use --tag for prerelease versions
-#    ```
-#
-# 2. Configure OIDC trusted publishing on npmjs.com:
-#    - Go to https://www.npmjs.com/package/@USER/sqlite-vec/access
-#    - Under "Publishing access" click "Add a trusted publisher"
-#    - Repository: USER/sqlite-vec
-#    - Workflow: npm-release.yaml
-#    - Environment: (leave blank)
-#
-# 3. Now this workflow can publish subsequent versions automatically
-
-#
-# RELEASE FLOW:
-#   1. Manually bump VERSION file and update CHANGELOG.md on main
-#   2. prepare-release: Creates a release branch, syncs VERSION to sqlite-vec.h/package.json
-#   3. build-*: All builds run from the release branch (with correct version baked in)
-#   4. publish-npm: Publishes to npm, then merges release branch to main on success
-#
-# If any step fails, main is untouched and the release branch can be deleted.
-#
-# BEFORE TRIGGERING THIS WORKFLOW:
-#   - Bump VERSION file (e.g., 0.4.0 → 0.4.1)
-#   - Update CHANGELOG.md with release notes
-#   - Commit to main: git commit -am "release: prepare v0.4.1"
-#
+# This workflow owns the pre-tag gate and signed release tag. The tag-bound
+# publish.yaml workflow rebuilds and stages the npm package with isolated OIDC
+# authority. A maintainer approves the staged package with 2FA on npmjs.com.
 
 on:
   workflow_dispatch:
@@ -55,22 +11,74 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.repository }}-release
+  cancel-in-progress: false
+
 jobs:
-  prepare-release:
+  verify-release-source:
+    name: Verify default-branch CI
     runs-on: ubuntu-24.04
     permissions:
-      contents: write
+      actions: read # Read Test and Memory Tests results for the release SHA.
+      contents: read
+    steps:
+      - name: Require current default branch with successful CI
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "$GITHUB_REF" != "refs/heads/$DEFAULT_BRANCH" ]]; then
+            echo "::error::Releases must be dispatched from $DEFAULT_BRANCH, not $GITHUB_REF"
+            exit 1
+          fi
+
+          REMOTE_SHA="$(
+            gh api "repos/$GITHUB_REPOSITORY/commits/$DEFAULT_BRANCH" --jq '.sha'
+          )"
+          if [[ "$REMOTE_SHA" != "$GITHUB_SHA" ]]; then
+            echo "::error::$DEFAULT_BRANCH moved after this release run started; run it again"
+            exit 1
+          fi
+
+          for WORKFLOW in test.yaml memory-tests.yaml; do
+            RUNS="$(
+              gh api \
+                "repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW/runs?branch=$DEFAULT_BRANCH&event=push&per_page=100"
+            )"
+            if ! jq -e --arg sha "$GITHUB_SHA" '
+              .workflow_runs
+              | any(.head_sha == $sha and .conclusion == "success")
+            ' <<< "$RUNS" >/dev/null; then
+              echo "::error::$WORKFLOW has no successful push run for $GITHUB_SHA"
+              exit 1
+            fi
+          done
+
+  prepare-release:
+    name: Prepare signed release branch
+    needs: verify-release-source
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # Push the temporary signed release branch.
     outputs:
       release_branch: ${{ steps.prepare.outputs.branch }}
       new_version: ${{ steps.prepare.outputs.version }}
+      release_commit: ${{ steps.prepare.outputs.commit }}
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           fetch-depth: 0
+          # This isolated job must push the temporary release branch. It has no
+          # npm OIDC authority.
+          persist-credentials: true
 
       - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
-          node-version: "24"
+          # Node.js 24.19.0 bundles npm 11.17.0; staged publishing needs 11.15.0
+          # or later. The stage job reverifies this at run time.
+          node-version: "24.19.0"
+          package-manager-cache: false
 
       - uses: photostructure/git-ssh-signing-action@fdd4b062a9ba41473f013258cc9c7eea1640f826 # v1.2.0
         with:
@@ -83,104 +91,132 @@ jobs:
         run: ./scripts/prepare-release.sh
 
   build-linux-x64:
+    name: Build linux-x64
     needs: [prepare-release]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           ref: ${{ needs.prepare-release.outputs.release_branch }}
+          persist-credentials: false
       - run: ./scripts/vendor.sh
       - run: make loadable
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: linux-x64
           path: dist/vec0.so
+          retention-days: 1
 
   build-linux-arm64:
+    name: Build linux-arm64
     needs: [prepare-release]
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           ref: ${{ needs.prepare-release.outputs.release_branch }}
+          persist-credentials: false
       - run: ./scripts/vendor.sh
       - run: make loadable
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: linux-arm64
           path: dist/vec0.so
+          retention-days: 1
 
   build-linux-x64-musl:
+    name: Build linux-x64-musl
     needs: [prepare-release]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           ref: ${{ needs.prepare-release.outputs.release_branch }}
+          persist-credentials: false
       - run: |
-          docker run --rm -v $(pwd):/tmp/project --entrypoint /bin/sh --platform linux/amd64 alpine:3.23 -c "\
-          apk add build-base bash curl unzip --update-cache && \
-          cd /tmp/project && \
-          ./scripts/vendor.sh && \
-          make loadable"
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/tmp/project" \
+            --entrypoint /bin/sh \
+            --platform linux/amd64 \
+            alpine:3.23 \
+            -c 'apk add build-base bash curl unzip --update-cache &&
+                cd /tmp/project &&
+                ./scripts/vendor.sh &&
+                make loadable'
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: linux-x64-musl
           path: dist/vec0.so
+          retention-days: 1
 
   build-linux-arm64-musl:
+    name: Build linux-arm64-musl
     needs: [prepare-release]
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           ref: ${{ needs.prepare-release.outputs.release_branch }}
+          persist-credentials: false
       - run: |
-          docker run --rm -v $(pwd):/tmp/project --entrypoint /bin/sh --platform linux/arm64 alpine:3.23 -c "\
-          apk add build-base bash curl unzip --update-cache && \
-          cd /tmp/project && \
-          ./scripts/vendor.sh && \
-          make loadable"
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/tmp/project" \
+            --entrypoint /bin/sh \
+            --platform linux/arm64 \
+            alpine:3.23 \
+            -c 'apk add build-base bash curl unzip --update-cache &&
+                cd /tmp/project &&
+                ./scripts/vendor.sh &&
+                make loadable'
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: linux-arm64-musl
           path: dist/vec0.so
+          retention-days: 1
 
   build-darwin-x64:
+    name: Build darwin-x64
     needs: [prepare-release]
     runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           ref: ${{ needs.prepare-release.outputs.release_branch }}
+          persist-credentials: false
       - run: ./scripts/vendor.sh
       - run: make loadable
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: darwin-x64
           path: dist/vec0.dylib
+          retention-days: 1
 
   build-darwin-arm64:
+    name: Build darwin-arm64
     needs: [prepare-release]
     runs-on: macos-14
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           ref: ${{ needs.prepare-release.outputs.release_branch }}
+          persist-credentials: false
       - run: ./scripts/vendor.sh
       - run: make loadable
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: darwin-arm64
           path: dist/vec0.dylib
+          retention-days: 1
 
   build-win32-x64:
+    name: Build win32-x64
     needs: [prepare-release]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           ref: ${{ needs.prepare-release.outputs.release_branch }}
+          persist-credentials: false
       - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
       - run: ./scripts/vendor.sh
         shell: bash
@@ -190,14 +226,17 @@ jobs:
         with:
           name: win32-x64
           path: dist/vec0.dll
+          retention-days: 1
 
   build-win32-arm64:
+    name: Build win32-arm64
     needs: [prepare-release]
     runs-on: windows-11-arm
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           ref: ${{ needs.prepare-release.outputs.release_branch }}
+          persist-credentials: false
       - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:
           arch: arm64
@@ -209,8 +248,10 @@ jobs:
         with:
           name: win32-arm64
           path: dist/vec0.dll
+          retention-days: 1
 
-  publish-npm:
+  rehearse-package:
+    name: Rehearse exact npm package
     runs-on: ubuntu-24.04
     needs:
       [
@@ -224,19 +265,12 @@ jobs:
         build-win32-x64,
         build-win32-arm64,
       ]
-    permissions:
-      contents: write # Required to push version commits and tags
-      id-token: write # Required for npm OIDC trusted publishing
-    env:
-      NEW_VERSION: ${{ needs.prepare-release.outputs.new_version }}
-      RELEASE_BRANCH: ${{ needs.prepare-release.outputs.release_branch }}
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           ref: ${{ needs.prepare-release.outputs.release_branch }}
-          fetch-depth: 0 # Full history for merging
+          persist-credentials: false
 
-      # Download all artifacts into platform-specific subdirectories
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: linux-x64
@@ -270,12 +304,36 @@ jobs:
           name: win32-arm64
           path: dist/win32-arm64
 
-      - run: ls -laR dist/
-
       - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
-          node-version: "24"
-          registry-url: "https://registry.npmjs.org"
+          # Node.js 24.19.0 bundles npm 11.17.0; staged publishing needs 11.15.0
+          # or later. The stage job reverifies this at run time.
+          node-version: "24.19.0"
+          package-manager-cache: false
+
+      - name: Pack and verify the release candidate
+        run: ./scripts/package-npm.sh rehearsal-package
+
+  finalize-release:
+    name: Create signed release tag
+    runs-on: ubuntu-24.04
+    needs: [prepare-release, rehearse-package]
+    permissions:
+      contents: write # Atomically push main and the signed release tag.
+    outputs:
+      tag: ${{ steps.finalize.outputs.tag }}
+    env:
+      NEW_VERSION: ${{ needs.prepare-release.outputs.new_version }}
+      RELEASE_BRANCH: ${{ needs.prepare-release.outputs.release_branch }}
+      RELEASE_COMMIT: ${{ needs.prepare-release.outputs.release_commit }}
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          ref: ${{ needs.prepare-release.outputs.release_branch }}
+          fetch-depth: 0
+          # This isolated job must push main and the signed release tag. It has
+          # no dependency install or npm OIDC authority.
+          persist-credentials: true
 
       - uses: photostructure/git-ssh-signing-action@fdd4b062a9ba41473f013258cc9c7eea1640f826 # v1.2.0
         with:
@@ -283,43 +341,45 @@ jobs:
           git-user-name: ${{ secrets.GIT_USER_NAME }}
           git-user-email: ${{ secrets.GIT_USER_EMAIL }}
 
-      # OIDC trusted publishing needs npm >= 11.5.1. Pinned, not @latest: npm
-      # drops EOL node lines in majors, so @latest broke the v1.2.1 release
-      # when npm 12 required node >= 22.22.2 on a node 20 runner.
-      #
-      # Held on npm 11, which is still maintained and is the major that
-      # published v1.2.0 (11.18.0). npm 12 landed two days later and has not
-      # been exercised against this OIDC + provenance publish; bump it
-      # deliberately, with a prerelease to test it, rather than drifting.
-      - run: npm install -g npm@11.19.0
-
-      - name: Publish to npm with OIDC
+      - name: Recheck source and create the signed tag
+        id: finalize
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          VERSION="${NEW_VERSION}"
-          # Extract prerelease identifier if present (e.g., "beta" from "1.0.0-beta.1")
-          if [[ "$VERSION" == *"-"* ]]; then
-            TAG=$(echo "$VERSION" | sed 's/.*-\([a-zA-Z]*\).*/\1/')
-            npm publish --provenance --access public --tag "$TAG"
-          else
-            npm publish --provenance --access public
+          git fetch --no-tags origin "$DEFAULT_BRANCH"
+          if [[ "$(git rev-parse "origin/$DEFAULT_BRANCH")" != "$GITHUB_SHA" ]]; then
+            echo "::error::$DEFAULT_BRANCH moved after this release run started; run it again"
+            exit 1
+          fi
+          if [[ "$(git rev-parse HEAD)" != "$RELEASE_COMMIT" ]]; then
+            echo "::error::Release branch moved after the build gate"
+            exit 1
           fi
 
-      # Only after successful npm publish: merge to main, tag, and create release
-      - name: Merge release branch to main
-        run: |
-          git checkout main
-          git merge --ff-only "$RELEASE_BRANCH"
-
-      - name: Create signed tag
-        run: git tag -s "v${NEW_VERSION}" -m "v${NEW_VERSION}"
-
-      - name: Push to main with tag
-        run: git push origin main --follow-tags
+          TAG="v${NEW_VERSION}"
+          git checkout -B "$DEFAULT_BRANCH" "origin/$DEFAULT_BRANCH"
+          git merge --ff-only "$RELEASE_COMMIT"
+          git tag -s "$TAG" -m "$TAG"
+          git push --atomic origin \
+            "HEAD:refs/heads/$DEFAULT_BRANCH" \
+            "refs/tags/$TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Delete release branch
+        continue-on-error: true
         run: git push origin --delete "$RELEASE_BRANCH"
 
-      - name: Create GitHub Release
-        run: gh release create "v${NEW_VERSION}" --generate-notes
+  dispatch-publisher:
+    name: Start tag-bound npm staging
+    runs-on: ubuntu-24.04
+    needs: finalize-release
+    permissions:
+      actions: write # Dispatch publish.yaml at the signed release tag.
+    steps:
+      # GITHUB_TOKEN-created tag events do not start another workflow. Dispatch
+      # the publisher explicitly at the signed tag so provenance names it.
+      - name: Start publish.yaml at the signed tag
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.finalize-release.outputs.tag }}
+        run: gh workflow run publish.yaml --repo "$GITHUB_REPOSITORY" --ref "$TAG"

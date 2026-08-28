@@ -168,33 +168,56 @@ Built with VitePress (Vue-based static site generator):
 
 ### Release Process
 
-**For this fork:** releases are published to **npm** by the `npm Release`
-workflow ([.github/workflows/npm-release.yaml](.github/workflows/npm-release.yaml)),
-which bundles all platform binaries into a single `@photostructure/sqlite-vec`
-package and publishes with npm OIDC trusted publishing + provenance.
+**For this fork:** releases use the `Build & Prepare Release` workflow
+([.github/workflows/release.yaml](.github/workflows/release.yaml)) and the
+tag-bound `Stage npm Package` workflow
+([.github/workflows/publish.yaml](.github/workflows/publish.yaml)). Together they
+bundle all platform binaries into one `@photostructure/sqlite-vec` package and
+stage it through npm OIDC trusted publishing with provenance.
 
 Manual steps (on `main`):
 
 1. Bump the `VERSION` file (format: `X.Y.Z` or `X.Y.Z-prerelease`, e.g. `1.1.2` or `1.2.0-beta.1`)
 2. Update `CHANGELOG.md` with the release notes
 3. Commit: `git commit -am "release: prepare vX.Y.Z"`
-4. Trigger the `npm Release` workflow (`workflow_dispatch`, e.g. via `gh workflow run npm-release.yaml` or the Actions tab)
+4. Wait for the `Test` and `Memory Tests` workflows on that commit to pass
+5. Trigger `Build & Prepare Release` from `main` (`workflow_dispatch`, e.g.
+   `gh workflow run release.yaml` or the Actions tab)
 
 The workflow then does the rest automatically:
 
 - Runs [scripts/prepare-release.sh](scripts/prepare-release.sh) to create a `release/vX.Y.Z`
   branch and sync `VERSION` into `sqlite-vec.h`, `package.json`, and `package-lock.json`
 - Builds `vec0` binaries for all platforms (linux x64/arm64 glibc+musl, darwin x64/arm64, win32 x64/arm64) from that branch
-- Publishes to npm (prerelease versions get an `--tag` derived from the identifier, e.g. `beta`)
-- **Only on successful publish:** fast-forward merges the release branch to `main`,
-  creates a signed `vX.Y.Z` tag, pushes, deletes the release branch, and creates a
-  GitHub Release with auto-generated notes
+- Packs and verifies the complete npm tarball before tagging
+- Fast-forward merges the release branch to `main`, atomically pushes a signed
+  `vX.Y.Z` tag, and dispatches `publish.yaml` at that exact tag
+- Rebuilds and packs the tagged source, then stages the package on npm
+- Creates the GitHub Release after npm accepts the staged package
 
-If any step fails, `main` is untouched and the `release/vX.Y.Z` branch can be deleted.
+After both workflows pass, inspect the package under **Staged Packages** on
+npmjs.com and approve it with 2FA. Until that approval, the package version is
+not public. Prerelease versions use the leading prerelease identifier as their
+npm dist-tag. Supported prerelease identifiers are `alpha`, `beta`, and `rc`;
+for example, `2.1.0-beta.1` uses the `beta` dist-tag.
 
 **Note:** Do **not** create the git tag manually — the workflow creates the signed
-tag after publishing. Other language registries (PyPI, crates.io, RubyGems) are not
-published by this fork; those users install from GitHub.
+tag after the pre-tag gate. Other language registries (PyPI, crates.io,
+RubyGems) are not published by this fork; those users install from GitHub.
+
+The npm Trusted Publisher must use these exact settings:
+
+- Provider: GitHub Actions
+- Organization or user: `photostructure`
+- Repository: `sqlite-vec`
+- Workflow filename: `publish.yaml`
+- Environment: empty
+- Allowed action: enable only **Allow npm stage publish**
+- Direct publish: leave **Allow npm publish** disabled
+
+Set package publishing access to **Require two-factor authentication and
+disallow tokens**. In GitHub, use read-only default workflow permissions and
+enable immutable releases.
 
 **Original upstream process (for reference only):**
 The original repository used `./scripts/publish-release.sh` with `sqlite-dist` to

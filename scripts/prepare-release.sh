@@ -13,14 +13,15 @@
 #   5. Commits and pushes the release branch
 #
 # Outputs (for GitHub Actions):
-#   - Writes branch=<name> and version=<version> to $GITHUB_OUTPUT if set
+#   - Writes branch=<name>, version=<version>, and commit=<sha> to
+#     $GITHUB_OUTPUT if set
 #
 # Developer workflow:
 #   1. Manually bump VERSION file (e.g., 0.4.0 → 0.4.1)
 #   2. Update CHANGELOG.md with changes
 #   3. Commit: git commit -am "release: prepare v0.4.1"
-#   4. Trigger npm-release.yaml workflow
-#   5. Workflow runs this script, builds, publishes, merges to main
+#   4. Trigger release.yaml workflow
+#   5. The workflows build, tag, stage, and wait for maintainer 2FA approval
 #
 # Why VERSION is source of truth:
 #
@@ -37,19 +38,16 @@
 #   2. CORRECT VERSION IN BINARIES: All platform builds check out the release
 #      branch, so the version in sqlite-vec.h is baked into every binary.
 #
-#   3. OIDC AUTHENTICATION: npm publishing uses OpenID Connect with GitHub's
-#      identity provider - no long-lived npm tokens to rotate or leak.
+#   3. OIDC AUTHENTICATION: The tag-bound publish workflow uses OpenID Connect
+#      with GitHub's identity provider, with no long-lived npm token.
 #
-#   4. PROVENANCE ATTESTATION: npm publish --provenance creates a signed,
-#      verifiable link between the published package and this GitHub repo,
-#      commit, and workflow run. Users can audit exactly what built their
-#      package.
+#   4. PROVENANCE ATTESTATION: The publisher starts at the signed release tag,
+#      so npm provenance identifies the same commit that built the package.
 #
-#   5. ATOMIC SUCCESS: Only after npm publish succeeds does the workflow merge
-#      to main, create the signed tag, and create the GitHub release. If
-#      anything fails, main is unchanged and the release branch can be deleted.
+#   5. HUMAN APPROVAL: CI stages the package; a maintainer reviews and approves
+#      it with 2FA before npm makes it public.
 #
-# See .github/workflows/npm-release.yaml for the full workflow.
+# See .github/workflows/release.yaml and .github/workflows/publish.yaml.
 #
 set -euo pipefail
 
@@ -62,6 +60,21 @@ if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
   echo "ERROR: VERSION file contains invalid semver: '$VERSION'" >&2
   echo "Expected format: X.Y.Z or X.Y.Z-prerelease" >&2
   exit 1
+fi
+
+# The first prerelease identifier becomes the npm dist-tag. Keep this set
+# explicit so every accepted VERSION is publishable before an immutable tag is
+# created; npm rejects tags that parse as SemVer ranges (for example, v1).
+if [[ "$VERSION" == *-* ]]; then
+  PRERELEASE="${VERSION#*-}"
+  DIST_TAG="${PRERELEASE%%.*}"
+  case "$DIST_TAG" in
+    alpha | beta | rc) ;;
+    *)
+      echo "ERROR: Prerelease must start with alpha, beta, or rc: '$VERSION'" >&2
+      exit 1
+      ;;
+  esac
 fi
 
 # Create release branch
@@ -88,7 +101,7 @@ fi
 
 # Sync VERSION to package.json and package-lock.json
 npm version "$VERSION" --no-git-tag-version --allow-same-version
-npm install --package-lock-only
+npm install --package-lock-only --ignore-scripts
 
 # Commit version sync (VERSION should already be committed on main)
 git add sqlite-vec.h package.json package-lock.json
@@ -116,10 +129,15 @@ fi
 
 git push origin "$BRANCH"
 
+RELEASE_COMMIT="$(git rev-parse HEAD)"
+
 # Output for GitHub Actions
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
-  echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
-  echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+  {
+    echo "branch=$BRANCH"
+    echo "version=$VERSION"
+    echo "commit=$RELEASE_COMMIT"
+  } >> "$GITHUB_OUTPUT"
 fi
 
 echo "Release branch '$BRANCH' created and pushed."
