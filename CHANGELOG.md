@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.1] - 2026-08-27
+
+No functional changes. The extension source, bindings, and packaged files are identical to 2.0.0 — this release only changes how the package is built and published.
+
+### Infrastructure
+
+- Releases are now staged for human approval instead of published directly by CI. `release.yaml` prepares and signs the version commit, rehearses the exact packaging path, and dispatches the tag-bound `publish.yaml`, which rebuilds all eight platform binaries from the signed tag and passes one verified tarball to an isolated job whose only npm authority is `npm stage publish`. A maintainer reviews the staged package and approves it with 2FA before npm makes it public. Previously the package was published from the pre-release `main` commit, so its provenance named a different commit than the one that built the tarball.
+- Added `scripts/package-npm.sh`, which enforces the eight-binary artifact set, the package identity, and the exact tarball file boundary. Both the pre-tag rehearsal and the publisher call it, so the release runs the same code it rehearsed rather than a second description of it.
+- Dependency and GitHub Action resolution now skips releases published in the last 14 days (`.npmrc`, `.pinact.yaml`, and `tests/pyproject.toml`), and npm no longer runs dependency lifecycle scripts implicitly. This affects only how this repository builds; it does not change what the published package depends on, which remains nothing.
+- Added `check-workflows.yaml` to audit every workflow with [zizmor](https://docs.zizmor.sh/) on each push and pull request, and set `persist-credentials: false` on all CI checkouts so the build jobs no longer carry a writable token they never used.
+
 ## [2.0.0] - 2026-08-25
 
 ### Changed
